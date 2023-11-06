@@ -1,0 +1,20 @@
+[package]
+name = "wdb_backup"
+version = "1.0.0"
+authors = ["alex@staticlibs.net"]
+edition = "2018"
+
+[build-dependencies]
+embed-resource = "1.8"
+
+[dependencies]
+chrono = "0.4.30"
+clipboard-win = "4.5.0"
+native-tls = "0.2.11"
+nwg = {version = "1.0.12", package = "native-windows-gui", features = ["all", "flexbox"]}
+postgres = {version = "0.19.7", features = ["with-chrono-0_4"]}
+postgres-native-tls = "0.5.0"
+postgres-types = "0.2.6"
+winapi = "0.3.9"
+
+
