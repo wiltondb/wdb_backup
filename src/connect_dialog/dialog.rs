@@ -24,6 +24,7 @@ pub struct ConnectDialog {
     args: ConnectDialogArgs,
     result: ConnectDialogResult,
     check_join_handle: ui::PopupJoinHandle<ConnectCheckDialogResult>,
+    load_join_handle: ui::PopupJoinHandle<LoadDbnamesDialogResult>,
 }
 
 impl ConnectDialog {
@@ -42,18 +43,33 @@ impl ConnectDialog {
         self.c.update_tab_order();
     }
 
+    pub(super) fn open_load_dialog(&mut self, _: nwg::EventData) {
+        self.c.window.set_enabled(false);
+        let config = self.config_from_input();
+        let args = LoadDbnamesDialogArgs::new(&self.c.load_notice, config);
+        self.load_join_handle = LoadDbnamesDialog::popup(args);
+    }
+
+    pub(super) fn await_load_dialog(&mut self, _: nwg::EventData) {
+        self.c.window.set_enabled(true);
+        self.c.load_notice.receive();
+        let res = self.load_join_handle.join();
+        if !res.success {
+            ui::shake_window(&self.c.window);
+            self.c.update_tab_order();
+        } else {
+            let config = self.config_from_input();
+            self.result = ConnectDialogResult::new(config, res.dbnames);
+            self.close(nwg::EventData::NoData);
+        }
+    }
+
     pub(super) fn on_port_input_changed(&mut self, _: nwg::EventData) {
         self.correct_port_value();
     }
 
     pub(super) fn on_enable_tls_checkbox_changed(&mut self, _: nwg::EventData) {
         self.sync_tls_checkboxes_state();
-    }
-
-    pub(super) fn on_load_button(&mut self, _: nwg::EventData) {
-        let pg_conf = self.config_from_input();
-        self.result = ConnectDialogResult::new(pg_conf);
-        self.close(nwg::EventData::NoData);
     }
 
     fn correct_port_value(&self) {
@@ -133,6 +149,8 @@ impl ui::PopupDialog<ConnectDialogArgs, ConnectDialogResult> for ConnectDialog {
         self.config_to_input(&self.args.pg_conn_config);
         self.result = ConnectDialogResult::cancelled();
         ui::shake_window(&self.c.window);
+        // todo: removeme
+        self.open_load_dialog(nwg::EventData::NoData    );
     }
 
     fn result(&mut self) -> ConnectDialogResult {

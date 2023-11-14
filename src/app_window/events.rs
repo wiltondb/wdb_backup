@@ -57,13 +57,35 @@ impl ui::Events<AppWindowControls> for AppWindowEvents {
             .build(&mut self.events)?;
 
         ui::event_builder()
-            .control(&c.dest_dir_button)
+            .control(&c.backup_dest_dir_button)
             .event(nwg::Event::OnButtonClick)
             .handler(AppWindow::choose_dest_dir)
             .build(&mut self.events)?;
 
         ui::event_builder()
-            .control(&c.close_button)
+            .control(&c.backup_run_button)
+            .event(nwg::Event::OnButtonClick)
+            .handler(AppWindow::open_backup_command_dialog)
+            .build(&mut self.events)?;
+        ui::event_builder()
+            .control(&c.backup_close_button)
+            .event(nwg::Event::OnButtonClick)
+            .handler(AppWindow::close)
+            .build(&mut self.events)?;
+
+        ui::event_builder()
+            .control(&c.restore_src_dir_button)
+            .event(nwg::Event::OnButtonClick)
+            .handler(AppWindow::choose_src_dir)
+            .build(&mut self.events)?;
+
+        ui::event_builder()
+            .control(&c.restore_run_button)
+            .event(nwg::Event::OnButtonClick)
+            .handler(AppWindow::open_restore_command_dialog)
+            .build(&mut self.events)?;
+        ui::event_builder()
+            .control(&c.restore_close_button)
             .event(nwg::Event::OnButtonClick)
             .handler(AppWindow::close)
             .build(&mut self.events)?;
@@ -77,6 +99,11 @@ impl ui::Events<AppWindowControls> for AppWindowEvents {
             .control(&c.connect_notice.notice)
             .event(nwg::Event::OnNotice)
             .handler(AppWindow::await_connect_dialog)
+            .build(&mut self.events)?;
+        ui::event_builder()
+            .control(&c.backup_command_notice.notice)
+            .event(nwg::Event::OnNotice)
+            .handler(AppWindow::await_backup_command_dialog)
             .build(&mut self.events)?;
 
         Ok(())

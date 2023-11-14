@@ -55,7 +55,7 @@ impl ui::Events<ConnectDialogControls> for ConnectDialogEvents {
         ui::event_builder()
             .control(&c.load_button)
             .event(nwg::Event::OnButtonClick)
-            .handler(ConnectDialog::on_load_button)
+            .handler(ConnectDialog::open_load_dialog)
             .build(&mut self.events)?;
 
         ui::event_builder()
@@ -68,6 +68,11 @@ impl ui::Events<ConnectDialogControls> for ConnectDialogEvents {
             .control(&c.check_notice.notice)
             .event(nwg::Event::OnNotice)
             .handler(ConnectDialog::await_check_dialog)
+            .build(&mut self.events)?;
+        ui::event_builder()
+            .control(&c.load_notice.notice)
+            .event(nwg::Event::OnNotice)
+            .handler(ConnectDialog::await_load_dialog)
             .build(&mut self.events)?;
 
         Ok(())

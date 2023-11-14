@@ -20,8 +20,10 @@ mod nwg_ui;
 mod common;
 mod about_dialog;
 mod app_window;
+mod command_dialog;
 mod connect_dialog;
 mod connect_check_dialog;
+mod load_dbnames_dialog;
 
 use nwg::NativeUi;
 

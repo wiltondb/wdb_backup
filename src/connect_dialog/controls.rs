@@ -41,6 +41,7 @@ pub(super) struct ConnectDialogControls {
     pub(super) cancel_button: nwg::Button,
 
     pub(super) check_notice: ui::SyncNotice,
+    pub(super) load_notice: ui::SyncNotice,
 }
 
 impl ui::Controls for ConnectDialogControls {
@@ -127,7 +128,7 @@ impl ui::Controls for ConnectDialogControls {
             .build(&mut self.test_button)?;
 
         nwg::Button::builder()
-            .text("Load settings")
+            .text("Load DB names")
             .font(Some(&self.font_normal))
             .parent(&self.window)
             .build(&mut self.load_button)?;
@@ -141,6 +142,9 @@ impl ui::Controls for ConnectDialogControls {
         ui::notice_builder()
             .parent(&self.window)
             .build(&mut self.check_notice)?;
+        ui::notice_builder()
+            .parent(&self.window)
+            .build(&mut self.load_notice)?;
 
         self.layout.build(&self)?;
 

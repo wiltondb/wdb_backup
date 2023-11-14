@@ -14,23 +14,43 @@
  * limitations under the License.
  */
 
-use super::*;
-
-#[derive(Default, Clone)]
-pub struct ConnectDialogResult {
-    pub pg_conn_config: PgConnConfig,
-    pub dbnames: Vec<String>,
+#[derive(Default)]
+pub(super) struct CommandResult {
+    pub(super) output: String,
+    pub(super) error: String
 }
 
-impl ConnectDialogResult {
-    pub fn new(pg_conn_config: PgConnConfig, dbnames: Vec<String>) -> Self {
+impl CommandResult {
+    pub(super) fn success(output: String) -> Self {
         Self {
-            pg_conn_config,
-            dbnames
+            output,
+            error: Default::default()
         }
     }
 
-    pub fn cancelled() -> Self {
-        Default::default()
+    pub(super) fn failure(error: String) -> Self {
+        Self {
+            output: Default::default(),
+            error
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct CommandDialogResult {
+    pub success: bool,
+}
+
+impl CommandDialogResult {
+    pub fn success() -> Self {
+        Self {
+            success: true,
+        }
+    }
+
+    pub fn failure() -> Self {
+        Self {
+            success: false,
+        }
     }
 }

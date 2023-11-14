@@ -17,8 +17,8 @@
 use super::*;
 
 #[derive(Default)]
-pub(super) struct ConnectCheckDialogControls {
-    layout: ConnectCheckDialogLayout,
+pub(super) struct LoadDbnamesDialogControls {
+    layout: LoadDbnamesDialogLayout,
 
     pub(super) font_normal: nwg::Font,
 
@@ -31,10 +31,10 @@ pub(super) struct ConnectCheckDialogControls {
     pub(super) copy_clipboard_button: nwg::Button,
     pub(super) close_button: nwg::Button,
 
-    pub(super) check_notice: ui::SyncNotice,
+    pub(super) load_notice: ui::SyncNotice,
 }
 
-impl ui::Controls for ConnectCheckDialogControls {
+impl ui::Controls for LoadDbnamesDialogControls {
     fn build(&mut self) -> Result<(), nwg::NwgError> {
         nwg::Font::builder()
             .size(ui::font_size_builder()
@@ -52,7 +52,7 @@ impl ui::Controls for ConnectCheckDialogControls {
             .size((320, 200))
             .icon(Some(&self.icon))
             .center(true)
-            .title("Test DB Connection")
+            .title("Load DB names")
             .build(&mut self.window)?;
 
         nwg::ProgressBar::builder()
@@ -64,7 +64,7 @@ impl ui::Controls for ConnectCheckDialogControls {
             .build(&mut self.progress_bar)?;
 
         nwg::Label::builder()
-            .text("Checking ...")
+            .text("Loading ...")
             .flags(nwg::LabelFlags::VISIBLE | nwg::LabelFlags::ELIPSIS)
             .font(Some(&self.font_normal))
             .v_align(nwg::VTextAlign::Top)
@@ -94,7 +94,7 @@ impl ui::Controls for ConnectCheckDialogControls {
 
         ui::notice_builder()
             .parent(&self.window)
-            .build(&mut self.check_notice)?;
+            .build(&mut self.load_notice)?;
 
         self.layout.build(&self)?;
 

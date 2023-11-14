@@ -16,6 +16,8 @@
 
 use super::*;
 
+const COLOR_WHITE: [u8; 3] = [255, 255, 255];
+
 #[derive(Default)]
 pub(super) struct AppWindowControls {
     layout: AppWindowLayout,
@@ -33,18 +35,34 @@ pub(super) struct AppWindowControls {
     pub(super) help_about_menu_item: nwg::MenuItem,
     pub(super) help_website_menu_item: nwg::MenuItem,
 
-    pub(super) dbname_label: nwg::Label,
-    pub(super) dbname_input: nwg::TextInput,
-    pub(super) dest_dir_label: nwg::Label,
-    pub(super) dest_dir_input: nwg::TextInput,
-    pub(super) dest_dir_button: nwg::Button,
-    pub(super) dest_dir_chooser: nwg::FileDialog,
+    pub(super) tabs_container: nwg::TabsContainer,
+    pub(super) backup_tab: nwg::Tab,
+    pub(super) restore_tab: nwg::Tab,
 
-    pub(super) close_button: nwg::Button,
+    pub(super) backup_dbname_label: nwg::Label,
+    pub(super) backup_dbname_combo: nwg::ComboBox<String>,
+    pub(super) backup_dest_dir_label: nwg::Label,
+    pub(super) backup_dest_dir_input: nwg::TextInput,
+    pub(super) backup_dest_dir_button: nwg::Button,
+    pub(super) backup_dest_dir_chooser: nwg::FileDialog,
+    pub(super) backup_run_button: nwg::Button,
+    pub(super) backup_close_button: nwg::Button,
+
+    pub(super) restore_src_dir_label: nwg::Label,
+    pub(super) restore_src_dir_input: nwg::TextInput,
+    pub(super) restore_src_dir_button: nwg::Button,
+    pub(super) restore_src_dir_chooser: nwg::FileDialog,
+    pub(super) restore_dbname_label: nwg::Label,
+    pub(super) restore_dbname_input: nwg::TextInput,
+    pub(super) restore_run_button: nwg::Button,
+    pub(super) restore_close_button: nwg::Button,
+
     pub(super) status_bar: nwg::StatusBar,
 
     pub(super) about_notice: ui::SyncNotice,
     pub(super) connect_notice: ui::SyncNotice,
+    pub(super) backup_command_notice: ui::SyncNotice,
+    pub(super) restore_command_notice: ui::SyncNotice,
 }
 
 impl ui::Controls for AppWindowControls {
@@ -70,7 +88,7 @@ impl ui::Controls for AppWindowControls {
             .build(&mut self.icon)?;
 
         nwg::Window::builder()
-            .size((640, 320))
+            .size((480, 320))
             .icon(Some(&self.icon))
             .center(true)
             .title("WiltonDB Backup Tool")
@@ -104,46 +122,120 @@ impl ui::Controls for AppWindowControls {
             .text("Website")
             .build(&mut self.help_website_menu_item)?;
 
-        // form
+        // tabs
+
+        nwg::TabsContainer::builder()
+            .font(Some(&self.font_normal))
+            .parent(&self.window)
+            .build(&mut self.tabs_container)?;
+        nwg::Tab::builder()
+            .text("Backup")
+            .parent(&self.tabs_container)
+            .build(&mut self.backup_tab)?;
+        nwg::Tab::builder()
+            .text("Restore")
+            .parent(&self.tabs_container)
+            .build(&mut self.restore_tab)?;
+
+        // backup form
 
         nwg::Label::builder()
-            .text("Logical DB name:")
+            .text("Database:")
             .font(Some(&self.font_normal))
+            .background_color(Some(COLOR_WHITE))
             .h_align(nwg::HTextAlign::Left)
-            .parent(&self.window)
-            .build(&mut self.dbname_label)?;
-        nwg::TextInput::builder()
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_dbname_label)?;
+        nwg::ComboBox::builder()
             .font(Some(&self.font_normal))
-            .parent(&self.window)
-            .build(&mut self.dbname_input)?;
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_dbname_combo)?;
 
         nwg::Label::builder()
-            .text("Destination directory:")
+            .text("Destination dir.:")
             .font(Some(&self.font_normal))
+            .background_color(Some(COLOR_WHITE))
             .h_align(nwg::HTextAlign::Left)
-            .parent(&self.window)
-            .build(&mut self.dest_dir_label)?;
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_dest_dir_label)?;
         nwg::TextInput::builder()
             .font(Some(&self.font_normal))
-            .parent(&self.window)
-            .build(&mut self.dest_dir_input)?;
+            // todo: removeme
+            .text("C:\\tmp\\import3\\dest")
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_dest_dir_input)?;
         nwg::Button::builder()
             .text("Choose")
             .font(Some(&self.font_normal))
-            .parent(&self.window)
-            .build(&mut self.dest_dir_button)?;
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_dest_dir_button)?;
         nwg::FileDialog::builder()
             .title("Choose destination directory")
             .action(nwg::FileDialogAction::OpenDirectory)
-            .build(&mut self.dest_dir_chooser)?;
+            .build(&mut self.backup_dest_dir_chooser)?;
+        nwg::Label::builder()
+            .text("DB name:")
+            .font(Some(&self.font_normal))
+            .background_color(Some(COLOR_WHITE))
+            .h_align(nwg::HTextAlign::Left)
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_dbname_label)?;
+        nwg::TextInput::builder()
+            .font(Some(&self.font_normal))
+            .text("test1")
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_dbname_input)?;
 
-        // buttons
+        // backup buttons
 
+        nwg::Button::builder()
+            .text("Run Backup")
+            .font(Some(&self.font_normal))
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_run_button)?;
         nwg::Button::builder()
             .text("Close")
             .font(Some(&self.font_normal))
-            .parent(&self.window)
-            .build(&mut self.close_button)?;
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_close_button)?;
+
+        // restore form
+
+        nwg::Label::builder()
+            .text("Source dir.:")
+            .font(Some(&self.font_normal))
+            .background_color(Some(COLOR_WHITE))
+            .h_align(nwg::HTextAlign::Left)
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_src_dir_label)?;
+        nwg::TextInput::builder()
+            .font(Some(&self.font_normal))
+            // todo: removeme
+            .text("C:\\tmp\\import3\\dest")
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_src_dir_input)?;
+        nwg::Button::builder()
+            .text("Choose")
+            .font(Some(&self.font_normal))
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_src_dir_button)?;
+        nwg::FileDialog::builder()
+            .title("Choose source directory")
+            .action(nwg::FileDialogAction::OpenDirectory)
+            .build(&mut self.restore_src_dir_chooser)?;
+
+        // restore buttons
+
+        nwg::Button::builder()
+            .text("Run Restore")
+            .font(Some(&self.font_normal))
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_run_button)?;
+        nwg::Button::builder()
+            .text("Close")
+            .font(Some(&self.font_normal))
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_close_button)?;
 
         // other
 
@@ -158,6 +250,12 @@ impl ui::Controls for AppWindowControls {
         ui::notice_builder()
             .parent(&self.window)
             .build(&mut self.connect_notice)?;
+        ui::notice_builder()
+            .parent(&self.window)
+            .build(&mut self.backup_command_notice)?;
+        ui::notice_builder()
+            .parent(&self.window)
+            .build(&mut self.restore_command_notice)?;
 
         self.layout.build(&self)?;
 
@@ -166,7 +264,10 @@ impl ui::Controls for AppWindowControls {
 
     fn update_tab_order(&self) {
         ui::tab_order_builder()
-            .control(&self.close_button)
+            .control(&self.backup_dbname_combo)
+            .control(&self.backup_dest_dir_input)
+            .control(&self.backup_run_button)
+            .control(&self.backup_close_button)
             .build();
     }
 }

@@ -14,11 +14,29 @@
  * limitations under the License.
  */
 
-pub mod labels;
-mod pg_access_error;
-mod pg_conn_config;
-mod pg_command;
+use super::*;
 
-pub use pg_access_error::PgAccessError;
-pub use pg_command::PgCommand;
-pub use pg_conn_config::PgConnConfig;
+#[derive(Default)]
+pub struct LoadDbnamesDialogArgs {
+    pub(super) notice_sender:  ui::SyncNoticeSender,
+    pub(super) pg_conn_config: PgConnConfig,
+}
+
+impl LoadDbnamesDialogArgs {
+    pub fn new(notice: &ui::SyncNotice, pg_conn_config: PgConnConfig) -> Self {
+        Self {
+            notice_sender: notice.sender(),
+            pg_conn_config,
+        }
+    }
+
+    pub fn send_notice(&self) {
+        self.notice_sender.send()
+    }
+}
+
+impl ui::PopupArgs for LoadDbnamesDialogArgs {
+    fn notify_parent(&self) {
+        self.notice_sender.send()
+    }
+}

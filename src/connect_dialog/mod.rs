@@ -36,6 +36,9 @@ use ui::PopupDialog;
 use connect_check_dialog::ConnectCheckDialog;
 use connect_check_dialog::ConnectCheckDialogArgs;
 use connect_check_dialog::ConnectCheckDialogResult;
+use load_dbnames_dialog::LoadDbnamesDialog;
+use load_dbnames_dialog::LoadDbnamesDialogArgs;
+use load_dbnames_dialog::LoadDbnamesDialogResult;
 
 pub use args::ConnectDialogArgs;
 use common::PgConnConfig;

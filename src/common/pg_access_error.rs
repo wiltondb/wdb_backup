@@ -15,6 +15,7 @@
  */
 
 use std::fmt;
+use std::io;
 
 #[derive(Debug)]
 pub struct PgAccessError {
@@ -51,6 +52,12 @@ impl From<postgres::Error> for PgAccessError {
 
 impl From<native_tls::Error> for PgAccessError {
     fn from(value: native_tls::Error) -> Self {
+        Self::new(&value)
+    }
+}
+
+impl From<io::Error> for PgAccessError {
+    fn from(value: io::Error) -> Self {
         Self::new(&value)
     }
 }
