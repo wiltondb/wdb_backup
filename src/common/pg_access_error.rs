@@ -29,13 +29,11 @@ impl PgAccessError {
         }
     }
 
-    /*
     pub fn from_string(message: String) -> Self {
         Self {
             message
         }
     }
-     */
 }
 
 impl fmt::Display for PgAccessError {

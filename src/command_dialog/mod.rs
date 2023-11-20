@@ -33,6 +33,7 @@ use nwg::NativeUi;
 
 use crate::*;
 use common::PgCommand;
+use common::PgCommandZip;
 use common::PgAccessError;
 use common::zip_directory;
 use nwg_ui as ui;

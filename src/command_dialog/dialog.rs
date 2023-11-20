@@ -15,7 +15,10 @@
  */
 
 use std::env;
+use std::fs;
+use std::io;
 use std::os::windows::process::CommandExt;
+use std::path::Path;
 
 use super::*;
 
@@ -63,56 +66,103 @@ impl CommandDialog {
         }
     }
 
-    fn run_command(command: PgCommand) -> Result<process::Output, PgAccessError> {
+    fn run_command(command: &PgCommand) -> Result<String, PgAccessError> {
         // todo: failures
         if !command.sql_statements.is_empty() {
             let mut client = command.conn_config.open_connection()?;
-            for sql in command.sql_statements {
-                client.execute(&sql, &[])?;
+            for sql in &command.sql_statements {
+                client.execute(sql, &[])?;
             }
             client.close()?;
         }
         let create_no_window: u32 = 0x08000000;
         // todo: unset
-        for (name, value) in command.env_vars {
+        for (name, value) in &command.env_vars {
             env::set_var(&name, &value);
         }
-        let mut cmd = process::Command::new(command.program);
-        for a in command.args {
+        let mut cmd = process::Command::new(&command.program);
+        for a in &command.args {
             cmd.arg(a);
         }
         cmd.creation_flags(create_no_window);
-        let res = cmd.output()?;
-        Ok(res)
-    }
-
-    fn process_command(cmd: PgCommand) -> CommandResult {
-        let zd = cmd.zip_result_dir.clone();
-        let res = match CommandDialog::run_command(cmd) {
+        match cmd.output() {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout[..]).to_string();
                 let stderr = String::from_utf8_lossy(&output.stderr[..]).to_string();
                 if output.status.success() {
-                    let msg = if !stdout.is_empty() {
-                        stdout
+                    if !stdout.is_empty() || ! stderr.is_empty() {
+                        Ok(format!("{}\n{}", stdout, stderr))
                     } else {
-                        stderr
-                    };
-                    CommandResult::success(msg)
+                        Ok(format!("{}{}", stdout, stderr))
+                    }
                 } else {
                     let code = match output.status.code() {
                         Some(code) => code,
                         None => -1
                     };
-                    CommandResult::failure(format!("Command error, status code: {}\r\n\r\nstderr: {}\r\nstdout: {}", code, stderr, stdout))
+                    Err(PgAccessError::from_string(format!(
+                        "Command error, status code: {}\r\n\r\nstderr: {}\r\nstdout: {}", code, stderr, stdout)))
                 }
             },
-            Err(e) => return CommandResult::failure(format!("{}", e))
+            Err(e) => Err(PgAccessError::from_string(format!("Command spawn error: {}", e)))
+        }
+    }
+
+    fn ensure_no_dest_dir(dest_dir: &str) -> Result<(), io::Error> {
+        let dir_path = Path::new(dest_dir);
+        let _ = fs::remove_dir_all(&dir_path);
+        if dir_path.exists() {
+            return Err(io::Error::new(io::ErrorKind::PermissionDenied, format!(
+                "Error removing directory: {}", dest_dir)));
+        }
+        Ok(())
+    }
+
+    fn zip_dest_directory(zd: &PgCommandZip) -> Result<(), io::Error> {
+        let dest_dir_path = Path::new(&zd.dest_dir);
+        let parent_path = match dest_dir_path.parent() {
+            Some(path) => path,
+            None => return Err(io::Error::new(io::ErrorKind::PermissionDenied, format!(
+                "Error accessing destination directory parent")))
         };
-        if zd.enabled {
-            match zip_directory(&zd.dir_path, &zd.zip_file_path, zd.comp_level) {
+        let dest_dir_st = match dest_dir_path.to_str() {
+            Some(st) => st,
+            None => return Err(io::Error::new(io::ErrorKind::PermissionDenied, format!(
+                "Error accessing destination directory")))
+        };
+        let parent_path_buf = parent_path.join(&zd.zip_file_name);
+        let dest_file_st = match parent_path_buf.to_str() {
+            Some(st) => st,
+            None => return Err(io::Error::new(io::ErrorKind::PermissionDenied, format!(
+                "Error accessing destination file")))
+        };
+        match zip_directory(dest_dir_st, dest_file_st, zd.comp_level) {
+            Ok(_) => {},
+            Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e.to_string()))
+        }
+        std::fs::remove_dir_all(dest_dir_path)?;
+        Ok(())
+    }
+
+    fn process_command(cmd: PgCommand) -> CommandResult {
+        // ensure no dest dir
+        if !cmd.ensure_dest_dir.is_empty() {
+            match Self::ensure_no_dest_dir(&cmd.ensure_dest_dir) {
                 Ok(_) => {},
-                Err(e) => return CommandResult::failure(format!("{}", e))
+                Err(e) => return CommandResult::failure(e.to_string())
+            }
+        }
+        // spawn and wait
+        let res = match CommandDialog::run_command(&cmd) {
+            Ok(output) => CommandResult::success(output),
+            Err(e) => CommandResult::failure(e.to_string())
+        };
+        // zip results
+        if res.error.is_empty() && cmd.zip_dest_dir.enabled {
+            match Self::zip_dest_directory(&cmd.zip_dest_dir) {
+                Ok(_) => {},
+                Err(e) => return CommandResult::failure(format!(
+                    "Error zipping destination directory, path: {}, error: {}", cmd.zip_dest_dir.dest_dir, e))
             }
         }
         res

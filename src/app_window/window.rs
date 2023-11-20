@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+use std::ffi::OsStr;
 use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 
 use chrono;
-use uuid::Uuid;
 
 use super::*;
 
@@ -99,15 +99,19 @@ impl AppWindow {
 
     pub(super) fn open_backup_command_dialog(&mut self, _: nwg::EventData) {
         let parent_dir = self.c.backup_dest_dir_input.text();
-        let filename = self.c.backup_filename_input.text();
+        let mut filename = self.c.backup_filename_input.text();
+        let mut ext = Path::new(&filename).extension().unwrap_or(OsStr::new(""))
+            .to_str().unwrap_or("").to_string();
+        if ext.is_empty() {
+            ext = ".zip".to_string();
+            filename.push_str(&ext);
+        }
         let dirname = match Path::new(&filename).extension() {
             Some(ext) => filename.chars().take(filename.len() - (ext.len() + 1)).collect(),
-            None => format!("{}_dir", filename)
+            None => format!("{}_dir", filename) // cannot happen
         };
         let parent_dir_slashes = parent_dir.replace("\\", "/");
-        let suffix = Uuid::new_v4().to_string().replace("-", "_");
-        let dest_dir = format!("{}/{}_{}", parent_dir_slashes, dirname, suffix);
-        println!("{}", dest_dir);
+        let dest_dir = format!("{}/{}", parent_dir_slashes, dirname);
         // todo: bin path
         //let bin_dir = "C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin";
         let bin_dir = "C:\\projects\\postgres\\dist\\bin";
@@ -129,6 +133,7 @@ impl AppWindow {
             .arg("-Z6")
             .arg("-f").arg(&dest_dir)
             .env_var("PGPASSWORD", &pcc.password)
+            .ensure_dest_dir(&dest_dir)
             .zip_result_dir(&dest_dir, &filename)
             ;
 

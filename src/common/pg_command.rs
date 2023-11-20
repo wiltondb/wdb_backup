@@ -15,26 +15,22 @@
  */
 
 use std::collections::HashMap;
-use std::path::Path;
 use crate::common::PgConnConfig;
 
 #[derive(Default, Debug, Clone)]
 pub struct PgCommandZip {
     pub enabled: bool,
-    pub dir_path: String,
-    pub zip_file_path: String,
+    pub dest_dir: String,
+    pub zip_file_name: String,
     pub comp_level: u8,
 }
 
 impl PgCommandZip {
-    fn new(dir: &str, zip_file: &str) -> Self {
-        let dir_path = Path::new(dir);
-        // todo: fixme
-        let parent_path = dir_path.parent().expect("Parent path fail");
+    fn new(dest_dir: &str, zip_file_name: &str) -> Self {
         Self {
             enabled: true,
-            dir_path: dir_path.to_string_lossy().to_string(),
-            zip_file_path: parent_path.join(Path::new(zip_file)).to_string_lossy().to_string(),
+            dest_dir: dest_dir.to_string(),
+            zip_file_name: zip_file_name.to_string(),
             comp_level: 0
         }
     }
@@ -47,7 +43,8 @@ pub struct PgCommand {
     pub env_vars: HashMap<String, String>,
     pub sql_statements: Vec<String>,
     pub conn_config: PgConnConfig,
-    pub zip_result_dir: PgCommandZip,
+    pub ensure_dest_dir: String,
+    pub zip_dest_dir: PgCommandZip,
 }
 
 impl PgCommand {
@@ -78,8 +75,13 @@ impl PgCommand {
         self
     }
 
-    pub fn zip_result_dir(mut self, result_dir: &str, zip_file_name: &str) -> Self {
-        self.zip_result_dir = PgCommandZip::new(result_dir, zip_file_name);
+    pub fn ensure_dest_dir(mut self, ensure_dest_dir: &str) -> Self {
+        self.ensure_dest_dir = ensure_dest_dir.to_string();
+        self
+    }
+
+    pub fn zip_result_dir(mut self, dest_dir: &str, zip_file_name: &str) -> Self {
+        self.zip_dest_dir = PgCommandZip::new(dest_dir, zip_file_name);
         self
     }
 }
