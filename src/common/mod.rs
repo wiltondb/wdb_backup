@@ -18,7 +18,9 @@ pub mod labels;
 mod pg_access_error;
 mod pg_conn_config;
 mod pg_command;
+mod zip_dir;
 
 pub use pg_access_error::PgAccessError;
 pub use pg_command::PgCommand;
 pub use pg_conn_config::PgConnConfig;
+pub use zip_dir::zip_directory;

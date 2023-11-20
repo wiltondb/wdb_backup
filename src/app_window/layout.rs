@@ -23,6 +23,7 @@ pub(super) struct AppWindowLayout {
     backup_tab_layout: nwg::FlexboxLayout,
     backup_dbname_layout: nwg::FlexboxLayout,
     backup_dest_dir_layout: nwg::FlexboxLayout,
+    backup_filename_layout: nwg::FlexboxLayout,
     backup_spacer_layout: nwg::FlexboxLayout,
     backup_buttons_layout: nwg::FlexboxLayout,
 
@@ -82,6 +83,22 @@ impl ui::Layout<AppWindowControls> for AppWindowLayout {
             .parent(&c.backup_tab)
             .flex_direction(ui::FlexDirection::Row)
             .auto_spacing(None)
+            .child(&c.backup_filename_label)
+            .child_size(ui::size_builder()
+                .width_label_normal()
+                .height_input_form_row()
+                .build())
+            .child(&c.backup_filename_input)
+            .child_margin(ui::margin_builder()
+                .start_pt(5)
+                .build())
+            .child_flex_grow(1.0)
+            .build_partial(&self.backup_filename_layout)?;
+
+        nwg::FlexboxLayout::builder()
+            .parent(&c.backup_tab)
+            .flex_direction(ui::FlexDirection::Row)
+            .auto_spacing(None)
             .build_partial(&self.backup_spacer_layout)?;
 
         nwg::FlexboxLayout::builder()
@@ -109,6 +126,7 @@ impl ui::Layout<AppWindowControls> for AppWindowLayout {
             .flex_direction(ui::FlexDirection::Column)
             .child_layout(&self.backup_dbname_layout)
             .child_layout(&self.backup_dest_dir_layout)
+            .child_layout(&self.backup_filename_layout)
             .child_layout(&self.backup_spacer_layout)
             .child_flex_grow(1.0)
             .child_layout(&self.backup_buttons_layout)

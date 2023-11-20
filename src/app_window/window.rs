@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-use std::fs;
 use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
+
+use chrono;
+use uuid::Uuid;
 
 use super::*;
 
@@ -88,6 +90,7 @@ impl AppWindow {
         dbnames.sort();
         self.c.backup_dbname_combo.set_collection(dbnames);
         self.c.backup_dbname_combo.set_selection(Some(1));
+        self.on_dbname_changed(nwg::EventData::NoData);
         self.pg_conn_config = res.pg_conn_config;
         let sbar_label = format!(
             "{}:{}", &self.pg_conn_config.hostname, &self.pg_conn_config.port);
@@ -95,15 +98,19 @@ impl AppWindow {
     }
 
     pub(super) fn open_backup_command_dialog(&mut self, _: nwg::EventData) {
-        let dest_dir = self.c.backup_dest_dir_input.text();
-        // todo: removeme
-        if dest_dir.ends_with("dest") {
-            let dest_dir_path = Path::new(&dest_dir);
-            // todo: error reporting
-            fs::remove_dir_all(dest_dir_path);
-        }
+        let parent_dir = self.c.backup_dest_dir_input.text();
+        let filename = self.c.backup_filename_input.text();
+        let dirname = match Path::new(&filename).extension() {
+            Some(ext) => filename.chars().take(filename.len() - (ext.len() + 1)).collect(),
+            None => format!("{}_dir", filename)
+        };
+        let parent_dir_slashes = parent_dir.replace("\\", "/");
+        let suffix = Uuid::new_v4().to_string().replace("-", "_");
+        let dest_dir = format!("{}/{}_{}", parent_dir_slashes, dirname, suffix);
+        println!("{}", dest_dir);
         // todo: bin path
-        let bin_dir = "C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin";
+        //let bin_dir = "C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin";
+        let bin_dir = "C:\\projects\\postgres\\dist\\bin";
         //let pg_dumpall = format!("{}\\pg_dumpall.exe", bin_dir);
         let pg_dump = format!("{}\\pg_dump.exe", bin_dir);
         // -h 127.0.0.1 -p 5432 -U wilton --bbf-database-name tmp1 -Fd -Z6 -f tmp1
@@ -121,7 +128,9 @@ impl AppWindow {
             .arg("-Fd")
             .arg("-Z6")
             .arg("-f").arg(&dest_dir)
-            .env_var("PGPASSWORD", &pcc.password);
+            .env_var("PGPASSWORD", &pcc.password)
+            .zip_result_dir(&dest_dir, &filename)
+            ;
 
         self.c.window.set_enabled(false);
         let args = CommandDialogArgs::new(&self.c.backup_command_notice, cmd);
@@ -221,6 +230,14 @@ impl AppWindow {
         }
     }
 
+    pub(super) fn on_dbname_changed(&mut self, _: nwg::EventData) {
+        if let Some(name) = &self.c.backup_dbname_combo.selection_string() {
+            let date = chrono::offset::Local::now();
+            let date_st = date.format("%Y%m%d_%H%M%S");
+            let filename = format!("{}_{}.zip", name, date_st);
+            self.c.backup_filename_input.set_text(&filename);
+        }
+    }
 
     fn set_status_bar_dbconn_label(&self, text: &str) {
         self.c.status_bar.set_text(0, &format!("  DB connection: {}", text));

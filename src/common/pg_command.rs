@@ -15,7 +15,30 @@
  */
 
 use std::collections::HashMap;
+use std::path::Path;
 use crate::common::PgConnConfig;
+
+#[derive(Default, Debug, Clone)]
+pub struct PgCommandZip {
+    pub enabled: bool,
+    pub dir_path: String,
+    pub zip_file_path: String,
+    pub comp_level: u8,
+}
+
+impl PgCommandZip {
+    fn new(dir: &str, zip_file: &str) -> Self {
+        let dir_path = Path::new(dir);
+        // todo: fixme
+        let parent_path = dir_path.parent().expect("Parent path fail");
+        Self {
+            enabled: true,
+            dir_path: dir_path.to_string_lossy().to_string(),
+            zip_file_path: parent_path.join(Path::new(zip_file)).to_string_lossy().to_string(),
+            comp_level: 0
+        }
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct PgCommand {
@@ -24,6 +47,7 @@ pub struct PgCommand {
     pub env_vars: HashMap<String, String>,
     pub sql_statements: Vec<String>,
     pub conn_config: PgConnConfig,
+    pub zip_result_dir: PgCommandZip,
 }
 
 impl PgCommand {
@@ -51,6 +75,11 @@ impl PgCommand {
 
     pub fn conn_config(mut self, conn_config: PgConnConfig) -> Self {
         self.conn_config = conn_config;
+        self
+    }
+
+    pub fn zip_result_dir(mut self, result_dir: &str, zip_file_name: &str) -> Self {
+        self.zip_result_dir = PgCommandZip::new(result_dir, zip_file_name);
         self
     }
 }

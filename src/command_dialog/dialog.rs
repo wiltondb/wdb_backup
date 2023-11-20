@@ -63,7 +63,7 @@ impl CommandDialog {
         }
     }
 
-    fn run_command(mut command: PgCommand) -> Result<process::Output, PgAccessError> {
+    fn run_command(command: PgCommand) -> Result<process::Output, PgAccessError> {
         // todo: failures
         if !command.sql_statements.is_empty() {
             let mut client = command.conn_config.open_connection()?;
@@ -84,6 +84,38 @@ impl CommandDialog {
         cmd.creation_flags(create_no_window);
         let res = cmd.output()?;
         Ok(res)
+    }
+
+    fn process_command(cmd: PgCommand) -> CommandResult {
+        let zd = cmd.zip_result_dir.clone();
+        let res = match CommandDialog::run_command(cmd) {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout[..]).to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr[..]).to_string();
+                if output.status.success() {
+                    let msg = if !stdout.is_empty() {
+                        stdout
+                    } else {
+                        stderr
+                    };
+                    CommandResult::success(msg)
+                } else {
+                    let code = match output.status.code() {
+                        Some(code) => code,
+                        None => -1
+                    };
+                    CommandResult::failure(format!("Command error, status code: {}\r\n\r\nstderr: {}\r\nstdout: {}", code, stderr, stdout))
+                }
+            },
+            Err(e) => return CommandResult::failure(format!("{}", e))
+        };
+        if zd.enabled {
+            match zip_directory(&zd.dir_path, &zd.zip_file_path, zd.comp_level) {
+                Ok(_) => {},
+                Err(e) => return CommandResult::failure(format!("{}", e))
+            }
+        }
+        res
     }
 }
 
@@ -106,27 +138,7 @@ impl ui::PopupDialog<CommandDialogArgs, CommandDialogResult> for CommandDialog {
         let cmd = self.args.command.clone();
         let join_handle = thread::spawn(move || {
             let start = Instant::now();
-            let res = match CommandDialog::run_command(cmd) {
-                Ok(output) => {
-                    let stdout = String::from_utf8_lossy(&output.stdout[..]).to_string();
-                    let stderr = String::from_utf8_lossy(&output.stderr[..]).to_string();
-                    if output.status.success() {
-                        let msg = if !stdout.is_empty() {
-                            stdout
-                        } else {
-                            stderr
-                        };
-                        CommandResult::success(msg)
-                    } else {
-                        let code = match output.status.code() {
-                            Some(code) => code,
-                            None => -1
-                        };
-                        CommandResult::failure(format!("Command error, status code: {}\r\n\r\nstderr: {}\r\nstdout: {}", code, stderr, stdout))
-                    }
-                },
-                Err(e) => CommandResult::failure(format!("{}", e))
-            };
+            let res = CommandDialog::process_command(cmd);
             let remaining = 1000 - start.elapsed().as_millis() as i64;
             if remaining > 0 {
                 thread::sleep(Duration::from_millis(remaining as u64));

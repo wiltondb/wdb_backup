@@ -57,6 +57,11 @@ impl ui::Events<AppWindowControls> for AppWindowEvents {
             .build(&mut self.events)?;
 
         ui::event_builder()
+            .control(&c.backup_dbname_combo)
+            .event(nwg::Event::OnComboxBoxSelection)
+            .handler(AppWindow::on_dbname_changed)
+            .build(&mut self.events)?;
+        ui::event_builder()
             .control(&c.backup_dest_dir_button)
             .event(nwg::Event::OnButtonClick)
             .handler(AppWindow::choose_dest_dir)
@@ -104,6 +109,11 @@ impl ui::Events<AppWindowControls> for AppWindowEvents {
             .control(&c.backup_command_notice.notice)
             .event(nwg::Event::OnNotice)
             .handler(AppWindow::await_backup_command_dialog)
+            .build(&mut self.events)?;
+        ui::event_builder()
+            .control(&c.restore_command_notice.notice)
+            .event(nwg::Event::OnNotice)
+            .handler(AppWindow::await_restore_command_dialog)
             .build(&mut self.events)?;
 
         Ok(())

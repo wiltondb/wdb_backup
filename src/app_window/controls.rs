@@ -45,6 +45,8 @@ pub(super) struct AppWindowControls {
     pub(super) backup_dest_dir_input: nwg::TextInput,
     pub(super) backup_dest_dir_button: nwg::Button,
     pub(super) backup_dest_dir_chooser: nwg::FileDialog,
+    pub(super) backup_filename_label: nwg::Label,
+    pub(super) backup_filename_input: nwg::TextInput,
     pub(super) backup_run_button: nwg::Button,
     pub(super) backup_close_button: nwg::Button,
 
@@ -161,7 +163,7 @@ impl ui::Controls for AppWindowControls {
         nwg::TextInput::builder()
             .font(Some(&self.font_normal))
             // todo: removeme
-            .text("C:\\tmp\\import3\\dest")
+            .text("C:\\tmp\\import3\\dest2")
             .parent(&self.backup_tab)
             .build(&mut self.backup_dest_dir_input)?;
         nwg::Button::builder()
@@ -174,17 +176,16 @@ impl ui::Controls for AppWindowControls {
             .action(nwg::FileDialogAction::OpenDirectory)
             .build(&mut self.backup_dest_dir_chooser)?;
         nwg::Label::builder()
-            .text("DB name:")
+            .text("Backup file name:")
             .font(Some(&self.font_normal))
             .background_color(Some(COLOR_WHITE))
             .h_align(nwg::HTextAlign::Left)
-            .parent(&self.restore_tab)
-            .build(&mut self.restore_dbname_label)?;
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_filename_label)?;
         nwg::TextInput::builder()
             .font(Some(&self.font_normal))
-            .text("test1")
-            .parent(&self.restore_tab)
-            .build(&mut self.restore_dbname_input)?;
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_filename_input)?;
 
         // backup buttons
 
@@ -223,6 +224,18 @@ impl ui::Controls for AppWindowControls {
             .title("Choose source directory")
             .action(nwg::FileDialogAction::OpenDirectory)
             .build(&mut self.restore_src_dir_chooser)?;
+        nwg::Label::builder()
+            .text("DB name:")
+            .font(Some(&self.font_normal))
+            .background_color(Some(COLOR_WHITE))
+            .h_align(nwg::HTextAlign::Left)
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_dbname_label)?;
+        nwg::TextInput::builder()
+            .font(Some(&self.font_normal))
+            .text("test1")
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_dbname_input)?;
 
         // restore buttons
 
