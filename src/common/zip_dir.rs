@@ -1,71 +1,114 @@
-use std::io::prelude::*;
-use std::io::{Seek, Write};
-use std::iter::Iterator;
-use zip::result::ZipError;
-use zip::write::FileOptions;
-
+use std::fs;
 use std::fs::File;
+use std::io;
+use std::io::BufReader;
+use std::io::BufWriter;
 use std::path::Path;
-use walkdir::{DirEntry, WalkDir};
+use std::path::PathBuf;
+use std::time::SystemTime;
 
-fn zip_dir_iter<T>(
-    it: &mut dyn Iterator<Item = DirEntry>,
-    prefix: &str,
-    writer: T,
-    method: zip::CompressionMethod,
-) -> zip::result::ZipResult<()>
-    where
-        T: Write + Seek,
-{
-    let mut zip = zip::ZipWriter::new(writer);
+use zip::result::ZipError;
+use zip::result::ZipResult;
+use zip::ZipWriter;
+use zip::write::FileOptions;
+use chrono::{Datelike, Timelike};
+
+fn strip_prefix(parent: &Path, child: &Path) -> Result<PathBuf, io::Error> {
+    match child.strip_prefix(parent) {
+        Ok(rel_path) => Ok(rel_path.to_path_buf()),
+        Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!(
+            "Strip prefix error, path: {}, error: {}", child.to_str().unwrap_or(""), e)))
+    }
+}
+
+fn path_to_string(path: &Path) -> Result<String, io::Error> {
+    let st = match path.to_str() {
+        Some(name) => name.to_string(),
+        None => return Err(io::Error::new(io::ErrorKind::Other, format!(
+            "Path access error")))
+    };
+    let res = st.replace("\\", "/");
+    Ok(res)
+}
+
+fn time_to_zip_time(system_time: &SystemTime) -> zip::DateTime {
+    let tm: chrono::DateTime<chrono::Utc> = system_time.clone().into();
+    match zip::DateTime::from_date_and_time(
+        tm.year() as u16, tm.month() as u8, tm.day() as u8,
+        tm.hour() as u8, tm.minute() as u8, tm.second() as u8) {
+        Ok(zdt) => zdt,
+        Err(_) => zip::DateTime::default()
+    }
+}
+
+fn read_dir_paths(dir: &Path) -> Result<Vec<PathBuf>, io::Error> {
+    let rd = fs::read_dir(dir)?;
+    let mut res: Vec<PathBuf> = Vec::new();
+    for en in rd {
+        let en = en?;
+        res.push(en.path())
+    }
+    Ok(res)
+}
+
+fn zip_file<T: io::Seek + io::Write>(zip: &mut ZipWriter<T>, root_dir: &Path, path: &Path) -> ZipResult<()> {
+    let file = File::open(path)?;
+    let meta = file.metadata()?;
+    let system_time = meta.modified()?;
+    let zip_time = time_to_zip_time(&system_time);
     let options = FileOptions::default()
-        .compression_method(method)
-        .unix_permissions(0o755);
+        .compression_method(zip::CompressionMethod::Stored)
+        .last_modified_time(zip_time);
+    let rel_path = match root_dir.parent() {
+        Some(parent) => strip_prefix(parent, path)?,
+        None => path.to_path_buf()
+    };
+    let name = path_to_string(&rel_path)?;
+    zip.start_file(name, options)?;
+    let mut reader = BufReader::new(file);
+    std::io::copy(&mut reader, zip)?;
+    Ok(())
+}
 
-    let mut buffer = Vec::new();
-    for entry in it {
-        let path = entry.path();
-        let name = path.strip_prefix(Path::new(prefix).parent().unwrap()).unwrap();
-
-        // Write file or directory explicitly
-        // Some unzip tools unzip files with directory paths correctly, some do not!
-        if path.is_file() {
-            #[allow(deprecated)]
-            zip.start_file_from_path(name, options)?;
-            let mut f = File::open(path)?;
-
-            f.read_to_end(&mut buffer)?;
-            zip.write_all(&buffer)?;
-            buffer.clear();
-        } else if !name.as_os_str().is_empty() {
-            // Only if not root! Avoids path spec / warning
-            // and mapname conversion failed error on unzip
-            #[allow(deprecated)]
-            zip.add_directory_from_path(name, options)?;
+fn zip_dir_recursive<T: io::Seek + io::Write>(zip: &mut ZipWriter<T>, root_dir: &Path, dir: &Path) -> ZipResult<()> {
+    if !dir.is_dir() {
+        return Err(ZipError::FileNotFound);
+    }
+    let rel_path = match root_dir.parent() {
+        Some(parent) => strip_prefix(parent, dir)?,
+        None => dir.to_path_buf()
+    };
+    let name = path_to_string(&rel_path)?;
+    let medatata = dir.metadata()?;
+    let system_time = medatata.modified()?;
+    let zip_time = time_to_zip_time(&system_time);
+    let options = FileOptions::default()
+        .last_modified_time(zip_time);
+    zip.add_directory(name, options)?;
+    for path in read_dir_paths(dir)? {
+        if path.is_dir() {
+            zip_dir_recursive(zip, root_dir, &path)?;
+        } else {
+            zip_file(zip, root_dir, &path)?;
         }
     }
     zip.finish()?;
-    Result::Ok(())
+    Ok(())
 }
 
 pub fn zip_directory(src_dir: &str, dst_file: &str, comp_level:  u8) -> zip::result::ZipResult<()> {
-    if !Path::new(src_dir).is_dir() {
+    let src_dir_path = Path::new(src_dir);
+    if !src_dir_path.is_dir() {
         return Err(ZipError::FileNotFound);
     }
-
-    let method = if 0 == comp_level {
-        zip::CompressionMethod::Stored
-    } else {
-        // todo:
-        panic!("ZIP compression disabled")
+    if 0 != comp_level {
+        return Err(ZipError::UnsupportedArchive("Compression not supported"));
     };
-    let path = Path::new(dst_file);
-    let file = File::create(path).unwrap();
-
-    let walkdir = WalkDir::new(src_dir);
-    let it = walkdir.into_iter();
-
-    zip_dir_iter(&mut it.filter_map(|e| e.ok()), src_dir, file, method)?;
-
+    let file = match File::create(Path::new(dst_file)) {
+        Ok(file) => file,
+        Err(e) => return Err(ZipError::Io(e))
+    };
+    let mut zip = zip::ZipWriter::new(BufWriter::new(file));
+    zip_dir_recursive(&mut zip, &src_dir_path, &src_dir_path)?;
     Ok(())
 }
