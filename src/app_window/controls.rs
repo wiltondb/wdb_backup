@@ -63,8 +63,8 @@ pub(super) struct AppWindowControls {
 
     pub(super) about_notice: ui::SyncNotice,
     pub(super) connect_notice: ui::SyncNotice,
-    pub(super) backup_command_notice: ui::SyncNotice,
-    pub(super) restore_command_notice: ui::SyncNotice,
+    pub(super) backup_dialog_notice: ui::SyncNotice,
+    pub(super) restore_dialog_notice: ui::SyncNotice,
 }
 
 impl ui::Controls for AppWindowControls {
@@ -265,10 +265,10 @@ impl ui::Controls for AppWindowControls {
             .build(&mut self.connect_notice)?;
         ui::notice_builder()
             .parent(&self.window)
-            .build(&mut self.backup_command_notice)?;
+            .build(&mut self.backup_dialog_notice)?;
         ui::notice_builder()
             .parent(&self.window)
-            .build(&mut self.restore_command_notice)?;
+            .build(&mut self.restore_dialog_notice)?;
 
         self.layout.build(&self)?;
 

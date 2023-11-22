@@ -20,6 +20,7 @@ mod nwg_ui;
 mod common;
 mod about_dialog;
 mod app_window;
+mod backup_dialog;
 mod command_dialog;
 mod connect_dialog;
 mod connect_check_dialog;

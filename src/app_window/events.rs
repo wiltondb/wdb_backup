@@ -70,7 +70,7 @@ impl ui::Events<AppWindowControls> for AppWindowEvents {
         ui::event_builder()
             .control(&c.backup_run_button)
             .event(nwg::Event::OnButtonClick)
-            .handler(AppWindow::open_backup_command_dialog)
+            .handler(AppWindow::open_backup_dialog)
             .build(&mut self.events)?;
         ui::event_builder()
             .control(&c.backup_close_button)
@@ -106,12 +106,12 @@ impl ui::Events<AppWindowControls> for AppWindowEvents {
             .handler(AppWindow::await_connect_dialog)
             .build(&mut self.events)?;
         ui::event_builder()
-            .control(&c.backup_command_notice.notice)
+            .control(&c.backup_dialog_notice.notice)
             .event(nwg::Event::OnNotice)
-            .handler(AppWindow::await_backup_command_dialog)
+            .handler(AppWindow::await_backup_dialog)
             .build(&mut self.events)?;
         ui::event_builder()
-            .control(&c.restore_command_notice.notice)
+            .control(&c.restore_dialog_notice.notice)
             .event(nwg::Event::OnNotice)
             .handler(AppWindow::await_restore_command_dialog)
             .build(&mut self.events)?;

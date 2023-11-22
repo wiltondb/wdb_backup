@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-use std::ffi::OsStr;
 use std::os::windows::process::CommandExt;
-use std::path::Path;
 use std::process::Command;
 use std::process::Stdio;
 
@@ -34,6 +32,7 @@ pub struct AppWindow {
 
     about_dialog_join_handle: ui::PopupJoinHandle<()>,
     connect_dialog_join_handle: ui::PopupJoinHandle<ConnectDialogResult>,
+    backup_dialog_join_handle: ui::PopupJoinHandle<BackupDialogResult>,
     command_dialog_join_handle: ui::PopupJoinHandle<CommandDialogResult>,
 }
 
@@ -97,8 +96,14 @@ impl AppWindow {
         self.set_status_bar_dbconn_label(&sbar_label);
     }
 
-    pub(super) fn open_backup_command_dialog(&mut self, _: nwg::EventData) {
-        let parent_dir = self.c.backup_dest_dir_input.text();
+    pub(super) fn open_backup_dialog(&mut self, _: nwg::EventData) {
+        let dbname = match self.c.backup_dbname_combo.selection_string() {
+            Some(name) => name,
+            None => return
+        };
+        let dir = self.c.backup_dest_dir_input.text();
+        let filename = self.c.backup_filename_input.text();
+        /*
         let mut filename = self.c.backup_filename_input.text();
         let mut ext = Path::new(&filename).extension().unwrap_or(OsStr::new(""))
             .to_str().unwrap_or("").to_string();
@@ -137,15 +142,18 @@ impl AppWindow {
             .zip_result_dir(&dest_dir, &filename)
             ;
 
+         */
+
         self.c.window.set_enabled(false);
-        let args = CommandDialogArgs::new(&self.c.backup_command_notice, cmd);
-        self.command_dialog_join_handle = CommandDialog::popup(args);
+        let args = BackupDialogArgs::new(
+            &self.c.backup_dialog_notice, &self.pg_conn_config,  &dbname, &dir, &filename);
+        self.backup_dialog_join_handle = BackupDialog::popup(args);
     }
 
-    pub(super) fn await_backup_command_dialog(&mut self, _: nwg::EventData) {
+    pub(super) fn await_backup_dialog(&mut self, _: nwg::EventData) {
         self.c.window.set_enabled(true);
-        self.c.backup_command_notice.receive();
-        let _ = self.command_dialog_join_handle.join();
+        self.c.backup_dialog_notice.receive();
+        let _ = self.backup_dialog_join_handle.join();
     }
 
     pub(super) fn open_restore_command_dialog(&mut self, _: nwg::EventData) {
@@ -177,13 +185,13 @@ impl AppWindow {
             .sql(&format!("GRANT {}_guest TO sysadmin GRANTED BY sysadmin", dbname))
             .sql(&format!("GRANT {}_guest TO {}_db_owner GRANTED BY sysadmin", dbname, dbname));
         self.c.window.set_enabled(false);
-        let args = CommandDialogArgs::new(&self.c.backup_command_notice, cmd);
+        let args = CommandDialogArgs::new(&self.c.backup_dialog_notice, cmd);
         self.command_dialog_join_handle = CommandDialog::popup(args);
     }
 
     pub(super) fn await_restore_command_dialog(&mut self, _: nwg::EventData) {
         self.c.window.set_enabled(true);
-        self.c.restore_command_notice.receive();
+        self.c.restore_dialog_notice.receive();
         let _ = self.command_dialog_join_handle.join();
     }
 
