@@ -14,37 +14,38 @@
  * limitations under the License.
  */
 
+mod args;
 mod controls;
+mod dialog;
 mod events;
 mod layout;
 mod nui;
-mod window;
+mod result;
+mod toc;
+
+use std::process;
+use std::thread;
+use std::time::Duration;
+use std::time::Instant;
+
+use clipboard_win::formats;
+use clipboard_win::set_clipboard;
+use nwg::NativeUi;
 
 use crate::*;
+use common::PgConnConfig;
+use common::unzip_directory;
 use nwg_ui as ui;
 use ui::Controls;
 use ui::Events;
 use ui::Layout;
 use ui::PopupDialog;
 
-use about_dialog::AboutDialog;
-use about_dialog::AboutDialogArgs;
-use common::PgConnConfig;
-use common::PgCommand;
-use backup_dialog::BackupDialog;
-use backup_dialog::BackupDialogArgs;
-use backup_dialog::BackupDialogResult;
-use command_dialog::CommandDialog;
-use command_dialog::CommandDialogArgs;
-use command_dialog::CommandDialogResult;
-use connect_dialog::ConnectDialog;
-use connect_dialog::ConnectDialogArgs;
-use connect_dialog::ConnectDialogResult;
-use restore_dialog::RestoreDialog;
-use restore_dialog::RestoreDialogArgs;
-use restore_dialog::RestoreDialogResult;
-
-pub(self) use controls::AppWindowControls;
-pub(self) use events::AppWindowEvents;
-use layout::AppWindowLayout;
-pub use window::AppWindow;
+pub use args::RestoreDialogArgs;
+pub(self) use controls::RestoreDialogControls;
+pub use dialog::RestoreDialog;
+use events::RestoreDialogEvents;
+use layout::RestoreDialogLayout;
+pub use result::RestoreDialogResult;
+use result::RestoreResult;
+pub(self) use toc::rewrite_toc;

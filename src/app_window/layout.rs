@@ -29,6 +29,7 @@ pub(super) struct AppWindowLayout {
 
     restore_tab_layout: nwg::FlexboxLayout,
     restore_src_dir_layout: nwg::FlexboxLayout,
+    restore_bbf_db_layout: nwg::FlexboxLayout,
     restore_dbname_layout: nwg::FlexboxLayout,
     restore_spacer_layout: nwg::FlexboxLayout,
     restore_buttons_layout: nwg::FlexboxLayout,
@@ -138,17 +139,17 @@ impl ui::Layout<AppWindowControls> for AppWindowLayout {
             .parent(&c.restore_tab)
             .flex_direction(ui::FlexDirection::Row)
             .auto_spacing(None)
-            .child(&c.restore_src_dir_label)
+            .child(&c.restore_src_file_label)
             .child_size(ui::size_builder()
                 .width_label_normal()
                 .height_input_form_row()
                 .build())
-            .child(&c.restore_src_dir_input)
+            .child(&c.restore_src_file_input)
             .child_margin(ui::margin_builder()
                 .start_pt(5)
                 .build())
             .child_flex_grow(1.0)
-            .child(&c.restore_src_dir_button)
+            .child(&c.restore_src_file_button)
             .child_size(ui::size_builder()
                 .width_button_normal()
                 .height_button()
@@ -157,6 +158,22 @@ impl ui::Layout<AppWindowControls> for AppWindowLayout {
                 .start_pt(5)
                 .build())
             .build_partial(&self.restore_src_dir_layout)?;
+
+        nwg::FlexboxLayout::builder()
+            .parent(&c.restore_tab)
+            .flex_direction(ui::FlexDirection::Row)
+            .auto_spacing(None)
+            .child(&c.restore_bbf_db_label)
+            .child_size(ui::size_builder()
+                .width_label_normal()
+                .height_input_form_row()
+                .build())
+            .child(&c.restore_bbf_db_input)
+            .child_margin(ui::margin_builder()
+                .start_pt(5)
+                .build())
+            .child_flex_grow(1.0)
+            .build_partial(&self.restore_bbf_db_layout)?;
 
         nwg::FlexboxLayout::builder()
             .parent(&c.restore_tab)
@@ -204,6 +221,7 @@ impl ui::Layout<AppWindowControls> for AppWindowLayout {
             .parent(&c.restore_tab)
             .flex_direction(ui::FlexDirection::Column)
             .child_layout(&self.restore_src_dir_layout)
+            .child_layout(&self.restore_bbf_db_layout)
             .child_layout(&self.restore_dbname_layout)
             .child_layout(&self.restore_spacer_layout)
             .child_flex_grow(1.0)

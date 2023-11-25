@@ -39,7 +39,7 @@ impl LoadDbnamesDialog {
             self.c.copy_clipboard_button.set_enabled(true);
             self.c.close_button.set_enabled(true);
         } else {
-            self.dialog_result = LoadDbnamesDialogResult::success(res.dbnames);
+            self.dialog_result = LoadDbnamesDialogResult::success(res.dbnames, res.bbf_db);
             self.close(nwg::EventData::NoData)
         }
     }
@@ -58,15 +58,17 @@ impl LoadDbnamesDialog {
         }
     }
 
-    fn load_dbnames_from_postgres(pg_conn_config: &PgConnConfig) -> Result<Vec<String>, PgAccessError> {
+    fn load_dbnames_from_postgres(pg_conn_config: &PgConnConfig) -> Result<(Vec<String>, String), PgAccessError> {
         // todo: connection close on failure
         let mut client = pg_conn_config.open_connection()?;
-        let vec = client.query("select name from sys.babelfish_sysdatabases", &[])?;
-        client.close()?;
-        let res = vec.iter().map(|row| {
+        let vec1 = client.query("select name from sys.babelfish_sysdatabases", &[])?;
+        let dbnames = vec1.iter().map(|row| {
             row.get("name")
         }).collect();
-        Ok(res)
+        let vec2 = client.query("show babelfishpg_tsql.database_name", &[])?;
+        let bbf_db: String = vec2[0].get("babelfishpg_tsql.database_name");
+        client.close()?;
+        Ok((dbnames, bbf_db))
     }
 }
 
@@ -90,7 +92,7 @@ impl ui::PopupDialog<LoadDbnamesDialogArgs, LoadDbnamesDialogResult> for LoadDbn
         let join_handle = thread::spawn(move || {
             let start = Instant::now();
             let res = match LoadDbnamesDialog::load_dbnames_from_postgres(&pgconf) {
-                Ok(dbnames) => LoadDbnamesResult::success(dbnames),
+                Ok((dbnames, bbf_db)) => LoadDbnamesResult::success(dbnames, bbf_db),
                 Err(e) => LoadDbnamesResult::failure(format!("{}", e))
             };
             let remaining = 1000 - start.elapsed().as_millis() as i64;

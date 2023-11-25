@@ -25,6 +25,7 @@ mod command_dialog;
 mod connect_dialog;
 mod connect_check_dialog;
 mod load_dbnames_dialog;
+mod restore_dialog;
 
 use nwg::NativeUi;
 

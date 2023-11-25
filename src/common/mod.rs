@@ -25,3 +25,4 @@ pub use pg_command::PgCommand;
 pub use pg_command::PgCommandZip;
 pub use pg_conn_config::PgConnConfig;
 pub use zip_dir::zip_directory;
+pub use zip_dir::unzip_directory;

@@ -50,10 +50,12 @@ pub(super) struct AppWindowControls {
     pub(super) backup_run_button: nwg::Button,
     pub(super) backup_close_button: nwg::Button,
 
-    pub(super) restore_src_dir_label: nwg::Label,
-    pub(super) restore_src_dir_input: nwg::TextInput,
-    pub(super) restore_src_dir_button: nwg::Button,
-    pub(super) restore_src_dir_chooser: nwg::FileDialog,
+    pub(super) restore_src_file_label: nwg::Label,
+    pub(super) restore_src_file_input: nwg::TextInput,
+    pub(super) restore_src_file_button: nwg::Button,
+    pub(super) restore_src_file_chooser: nwg::FileDialog,
+    pub(super) restore_bbf_db_label: nwg::Label,
+    pub(super) restore_bbf_db_input: nwg::TextInput,
     pub(super) restore_dbname_label: nwg::Label,
     pub(super) restore_dbname_input: nwg::TextInput,
     pub(super) restore_run_button: nwg::Button,
@@ -203,29 +205,42 @@ impl ui::Controls for AppWindowControls {
         // restore form
 
         nwg::Label::builder()
-            .text("Source dir.:")
+            .text("Backup file:")
             .font(Some(&self.font_normal))
             .background_color(Some(COLOR_WHITE))
             .h_align(nwg::HTextAlign::Left)
             .parent(&self.restore_tab)
-            .build(&mut self.restore_src_dir_label)?;
+            .build(&mut self.restore_src_file_label)?;
         nwg::TextInput::builder()
             .font(Some(&self.font_normal))
             // todo: removeme
-            .text("C:\\tmp\\import3\\dest")
+            .text("C:\\tmp\\import3\\dest2\\test1_20231125_142214.zip")
             .parent(&self.restore_tab)
-            .build(&mut self.restore_src_dir_input)?;
+            .build(&mut self.restore_src_file_input)?;
         nwg::Button::builder()
             .text("Choose")
             .font(Some(&self.font_normal))
             .parent(&self.restore_tab)
-            .build(&mut self.restore_src_dir_button)?;
+            .build(&mut self.restore_src_file_button)?;
         nwg::FileDialog::builder()
-            .title("Choose source directory")
-            .action(nwg::FileDialogAction::OpenDirectory)
-            .build(&mut self.restore_src_dir_chooser)?;
+            .title("Choose backup file")
+            .action(nwg::FileDialogAction::Open)
+            .build(&mut self.restore_src_file_chooser)?;
         nwg::Label::builder()
-            .text("DB name:")
+            .text("Postgres DB name:")
+            .font(Some(&self.font_normal))
+            .background_color(Some(COLOR_WHITE))
+            .h_align(nwg::HTextAlign::Left)
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_bbf_db_label)?;
+        nwg::TextInput::builder()
+            .font(Some(&self.font_normal))
+            .text("")
+            .readonly(true)
+            .parent(&self.restore_tab)
+            .build(&mut self.restore_bbf_db_input)?;
+        nwg::Label::builder()
+            .text("Restore into DB:")
             .font(Some(&self.font_normal))
             .background_color(Some(COLOR_WHITE))
             .h_align(nwg::HTextAlign::Left)

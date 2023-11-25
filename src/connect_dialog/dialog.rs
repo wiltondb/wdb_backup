@@ -59,7 +59,7 @@ impl ConnectDialog {
             self.c.update_tab_order();
         } else {
             let config = self.config_from_input();
-            self.result = ConnectDialogResult::new(config, res.dbnames);
+            self.result = ConnectDialogResult::new(config, res.dbnames, res.bbf_db);
             self.close(nwg::EventData::NoData);
         }
     }

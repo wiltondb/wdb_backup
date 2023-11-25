@@ -1,3 +1,19 @@
+/*
+ * Copyright 2023, WiltonDB Software
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -111,4 +127,15 @@ pub fn zip_directory(src_dir: &str, dst_file: &str, comp_level:  u8) -> zip::res
     let mut zip = zip::ZipWriter::new(BufWriter::new(file));
     zip_dir_recursive(&mut zip, &src_dir_path, &src_dir_path)?;
     Ok(())
+}
+
+pub fn unzip_directory(zip_file: &str, dest_dir: &str) -> zip::result::ZipResult<String> {
+    let file = match File::open(Path::new(zip_file)) {
+        Ok(file) => file,
+        Err(e) => return Err(ZipError::Io(e))
+    };
+    let mut zip = zip::ZipArchive::new(BufReader::new(file))?;
+    zip.extract(Path::new(dest_dir))?;
+    let entry = zip.by_index(0)?;
+    Ok(entry.name().to_string())
 }

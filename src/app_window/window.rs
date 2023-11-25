@@ -33,6 +33,7 @@ pub struct AppWindow {
     about_dialog_join_handle: ui::PopupJoinHandle<()>,
     connect_dialog_join_handle: ui::PopupJoinHandle<ConnectDialogResult>,
     backup_dialog_join_handle: ui::PopupJoinHandle<BackupDialogResult>,
+    restore_dialog_join_handle: ui::PopupJoinHandle<RestoreDialogResult>,
     command_dialog_join_handle: ui::PopupJoinHandle<CommandDialogResult>,
 }
 
@@ -90,6 +91,7 @@ impl AppWindow {
         self.c.backup_dbname_combo.set_collection(dbnames);
         self.c.backup_dbname_combo.set_selection(Some(1));
         self.on_dbname_changed(nwg::EventData::NoData);
+        self.c.restore_bbf_db_input.set_text(&res.bbf_db);
         self.pg_conn_config = res.pg_conn_config;
         let sbar_label = format!(
             "{}:{}", &self.pg_conn_config.hostname, &self.pg_conn_config.port);
@@ -157,13 +159,16 @@ impl AppWindow {
     }
 
     pub(super) fn open_restore_command_dialog(&mut self, _: nwg::EventData) {
+        let pcc = &self.pg_conn_config;
+        let zipfile = self.c.restore_src_file_input.text();
+        let dbname = self.c.restore_dbname_input.text();
+        let bbf_db = self.c.restore_bbf_db_input.text();
+        /*
         let src_dir = self.c.restore_src_dir_input.text();
         // todo: bin path
         let bin_dir = "C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin";
         let pg_restore = format!("{}\\pg_restore.exe", bin_dir);
-        let pcc = &self.pg_conn_config;
         // todo:
-        let dbname = self.c.restore_dbname_input.text();
         let cmd = PgCommand::new(pg_restore)
             .arg("-v")
             .arg("-h").arg(&pcc.hostname)
@@ -184,15 +189,18 @@ impl AppWindow {
             .sql(&format!("GRANT {}_dbo TO sysadmin GRANTED BY sysadmin", dbname))
             .sql(&format!("GRANT {}_guest TO sysadmin GRANTED BY sysadmin", dbname))
             .sql(&format!("GRANT {}_guest TO {}_db_owner GRANTED BY sysadmin", dbname, dbname));
+         */
         self.c.window.set_enabled(false);
-        let args = CommandDialogArgs::new(&self.c.backup_dialog_notice, cmd);
-        self.command_dialog_join_handle = CommandDialog::popup(args);
+        let args = RestoreDialogArgs::new(
+            &self.c.restore_dialog_notice, &pcc,
+            &zipfile, &dbname, &bbf_db);
+        self.restore_dialog_join_handle = RestoreDialog::popup(args);
     }
 
     pub(super) fn await_restore_command_dialog(&mut self, _: nwg::EventData) {
         self.c.window.set_enabled(true);
         self.c.restore_dialog_notice.receive();
-        let _ = self.command_dialog_join_handle.join();
+        let _ = self.restore_dialog_join_handle.join();
     }
 
     pub(super) fn open_website(&mut self, _: nwg::EventData) {
@@ -230,15 +238,15 @@ impl AppWindow {
     pub(super) fn choose_src_dir(&mut self, _: nwg::EventData) {
         if let Ok(d) = std::env::current_dir() {
             if let Some(d) = d.to_str() {
-                self.c.restore_src_dir_chooser.set_default_folder(d).expect("Failed to set default folder.");
+                self.c.restore_src_file_chooser.set_default_folder(d).expect("Failed to set default folder.");
             }
         }
 
-        if self.c.restore_src_dir_chooser.run(Some(&self.c.window)) {
-            self.c.restore_src_dir_input.set_text("");
-            if let Ok(directory) = self.c.restore_src_dir_chooser.get_selected_item() {
-                let dir = directory.into_string().unwrap();
-                self.c.restore_src_dir_input.set_text(&dir);
+        if self.c.restore_src_file_chooser.run(Some(&self.c.window)) {
+            self.c.restore_src_file_input.set_text("");
+            if let Ok(file) = self.c.restore_src_file_chooser.get_selected_item() {
+                let f = file.into_string().unwrap();
+                self.c.restore_src_file_input.set_text(&f);
             }
         }
     }

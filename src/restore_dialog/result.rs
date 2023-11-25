@@ -15,49 +15,42 @@
  */
 
 #[derive(Default)]
-pub(super) struct LoadDbnamesResult {
-    pub(super) dbnames: Vec<String>,
-    pub(super) bbf_db: String,
-    pub(super) error: String,
+pub(super) struct RestoreResult {
+    pub(super) output: String,
+    pub(super) error: String
 }
 
-impl LoadDbnamesResult {
-    pub(super) fn success(dbnames: Vec<String>, bbf_db: String) -> Self {
+impl RestoreResult {
+    pub(super) fn success(output: String) -> Self {
         Self {
-            dbnames,
-            bbf_db,
-            error: String::new()
+            output,
+            error: Default::default()
         }
     }
 
     pub(super) fn failure(error: String) -> Self {
         Self {
-            error,
-            ..Default::default()
+            output: Default::default(),
+            error
         }
     }
 }
 
 #[derive(Default, Clone)]
-pub struct LoadDbnamesDialogResult {
+pub struct RestoreDialogResult {
     pub success: bool,
-    pub dbnames: Vec<String>,
-    pub bbf_db: String,
 }
 
-impl LoadDbnamesDialogResult {
-    pub fn success(dbnames: Vec<String>, bbf_db: String) -> Self {
+impl RestoreDialogResult {
+    pub fn success() -> Self {
         Self {
             success: true,
-            dbnames,
-            bbf_db
         }
     }
 
     pub fn failure() -> Self {
         Self {
             success: false,
-            ..Default::default()
         }
     }
 }

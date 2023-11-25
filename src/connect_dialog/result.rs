@@ -19,14 +19,16 @@ use super::*;
 #[derive(Default, Clone)]
 pub struct ConnectDialogResult {
     pub pg_conn_config: PgConnConfig,
+    pub bbf_db: String,
     pub dbnames: Vec<String>,
 }
 
 impl ConnectDialogResult {
-    pub fn new(pg_conn_config: PgConnConfig, dbnames: Vec<String>) -> Self {
+    pub fn new(pg_conn_config: PgConnConfig, dbnames: Vec<String>, bbf_db: String) -> Self {
         Self {
             pg_conn_config,
-            dbnames
+            dbnames,
+            bbf_db
         }
     }
 
