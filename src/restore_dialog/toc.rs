@@ -24,8 +24,6 @@ use std::path::Path;
 
 use chrono::naive::NaiveDateTime;
 
-use super::*;
-
 fn copy_magic(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Result<(), io::Error> {
     let mut buf = [0u8; 5];
     reader.read_exact( &mut buf)?;

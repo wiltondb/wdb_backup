@@ -21,7 +21,6 @@ mod common;
 mod about_dialog;
 mod app_window;
 mod backup_dialog;
-mod command_dialog;
 mod connect_dialog;
 mod connect_check_dialog;
 mod load_dbnames_dialog;

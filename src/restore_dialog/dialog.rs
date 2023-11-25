@@ -15,11 +15,9 @@
  */
 
 use std::env;
-use std::ffi::OsStr;
-use std::fs;
 use std::io;
 use std::os::windows::process::CommandExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use super::*;
 use crate::restore_dialog::args::PgRestoreArgs;

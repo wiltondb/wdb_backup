@@ -34,7 +34,6 @@ pub struct AppWindow {
     connect_dialog_join_handle: ui::PopupJoinHandle<ConnectDialogResult>,
     backup_dialog_join_handle: ui::PopupJoinHandle<BackupDialogResult>,
     restore_dialog_join_handle: ui::PopupJoinHandle<RestoreDialogResult>,
-    command_dialog_join_handle: ui::PopupJoinHandle<CommandDialogResult>,
 }
 
 impl AppWindow {
