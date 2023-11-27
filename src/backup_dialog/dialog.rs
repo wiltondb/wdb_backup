@@ -91,7 +91,8 @@ impl BackupDialog {
             .arg("-U").arg(&pcc.username)
             .arg("--bbf-database-name").arg(&dbname)
             .arg("-Fd")
-            .arg("-Z6")
+            //.arg("-Z6")
+            .arg("-Z0")
             .arg("-f").arg(&dest_dir)
             .creation_flags(create_no_window)
             .output() {

@@ -59,7 +59,6 @@ impl LoadDbnamesDialog {
     }
 
     fn load_dbnames_from_postgres(pg_conn_config: &PgConnConfig) -> Result<(Vec<String>, String), PgAccessError> {
-        // todo: connection close on failure
         let mut client = pg_conn_config.open_connection()?;
         let vec1 = client.query("select name from sys.babelfish_sysdatabases", &[])?;
         let dbnames = vec1.iter().map(|row| {

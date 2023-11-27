@@ -93,16 +93,35 @@ impl RestoreDialog {
         }
     }
 
+    fn check_db_does_not_exist(pg_conn_config: &PgConnConfig, dbname: &str) -> Result<(), PgAccessError> {
+        let mut client = pg_conn_config.open_connection()?;
+        let cursor = client.query("select name from sys.babelfish_sysdatabases", &[])?;
+        for row in cursor.iter() {
+            let name: String = row.get("name");
+            if name.to_lowercase() == dbname.to_lowercase() {
+                return Err(PgAccessError::from_string(format!("Database with name '{}' already exists", dbname)))
+            }
+        };
+        client.close()?;
+        Ok(())
+    }
+
+    fn create_role_if_not_exist(client: &mut postgres::Client, dbname: &str, role: &str) -> Result<(), PgAccessError> {
+        let rolname = format!("{}_{}", dbname, role);
+        let list = client.query("select (count(1) > 0) as role_exist from pg_catalog.pg_roles where rolname = $1", &[&rolname])?;
+        let exists: bool = list[0].get(0);
+        if !exists {
+            client.execute(&format!("CREATE ROLE {}", rolname), &[])?;
+            client.execute(&format!("ALTER ROLE {} WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", rolname), &[])?;
+        }
+        Ok(())
+    }
+
     fn restore_global_data(pcc: &PgConnConfig, dbname: &str) -> Result<(), PgAccessError> {
-        println!("{}", dbname);
         let mut client = pcc.open_connection()?;
-        // todo: error handling
-        client.execute(&format!("CREATE ROLE {}_db_owner", dbname), &[])?;
-        client.execute(&format!("ALTER ROLE {}_db_owner WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", dbname), &[])?;
-        client.execute(&format!("CREATE ROLE {}_dbo", dbname), &[])?;
-        client.execute(&format!("ALTER ROLE {}_dbo WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", dbname), &[])?;
-        client.execute(&format!("CREATE ROLE {}_guest", dbname), &[])?;
-        client.execute(&format!("ALTER ROLE {}_guest WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", dbname), &[])?;
+        Self::create_role_if_not_exist(&mut client, dbname, "db_owner")?;
+        Self::create_role_if_not_exist(&mut client, dbname, "dbo")?;
+        Self::create_role_if_not_exist(&mut client, dbname, "guest")?;
         client.execute(&format!("GRANT {}_db_owner TO {}_dbo GRANTED BY sysadmin", dbname, dbname), &[])?;
         client.execute(&format!("GRANT {}_dbo TO sysadmin GRANTED BY sysadmin", dbname), &[])?;
         client.execute(&format!("GRANT {}_guest TO sysadmin GRANTED BY sysadmin", dbname), &[])?;
@@ -160,6 +179,10 @@ impl RestoreDialog {
     }
 
     fn run_restore(pcc: &PgConnConfig, ra: &PgRestoreArgs) -> RestoreResult {
+        match Self::check_db_does_not_exist(pcc, &ra.dest_db_name) {
+            Ok(_) => {},
+            Err(e) => return RestoreResult::failure(format!("{}", e))
+        }
         let dir = match Self::unzip_file(&ra.zip_file_path) {
             Ok(dir) => dir,
             Err(e) => return RestoreResult::failure(format!("{}", e))
