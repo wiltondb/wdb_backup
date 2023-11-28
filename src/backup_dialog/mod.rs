@@ -22,7 +22,6 @@ mod layout;
 mod nui;
 mod result;
 
-use std::process;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;

@@ -10,6 +10,7 @@ embed-resource = "1.8"
 [dependencies]
 chrono = "0.4.30"
 clipboard-win = "4.5.0"
+duct = "0.13.6"
 native-tls = "0.2.11"
 nwg = {version = "1.0.12", package = "native-windows-gui", features = ["all", "flexbox"]}
 postgres = {version = "0.19.7", features = ["with-chrono-0_4"]}

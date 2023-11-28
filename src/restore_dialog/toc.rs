@@ -99,7 +99,7 @@ fn write_int(writer: &mut BufWriter<File>, val: i32) -> Result<(), io::Error> {
     for i in 0..uval_bytes.len() {
         buf[i + 1] = uval_bytes[i];
     }
-    writer.write_all(&buf);
+    writer.write_all(&buf)?;
     Ok(())
 }
 
@@ -156,7 +156,7 @@ fn read_string_opt(reader: &mut BufReader<File>) -> Result<Option<Vec<u8>>, io::
         return Ok(Some(Vec::with_capacity(0usize)))
     }
     let mut vec: Vec<u8> = Vec::with_capacity(len as usize);
-    for i in 0..len {
+    for _ in 0..len {
         vec.push(0u8);
     }
     reader.read_exact(vec.as_mut_slice())?;
@@ -199,6 +199,7 @@ fn binopt_to_string(bin_opt: &Option<Vec<u8>>) -> String {
     }
 }
 
+#[allow(dead_code)]
 fn print_bin_str(label: &str, bin_opt: &Option<Vec<u8>>) {
     match bin_opt {
         Some(bin) => {
@@ -282,15 +283,11 @@ fn copy_header(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Re
     copy_magic(reader, writer)?;
     copy_version(reader, writer)?;
     copy_flags(reader, writer)?;
-    let comp = copy_int(reader, writer)?;
-    println!("{}", comp);
-    let timestamp = copy_timestamp(reader, writer)?;
-    println!("{}", timestamp);
+    let _comp = copy_int(reader, writer)?;
+    let _timestamp = copy_timestamp(reader, writer)?;
     let _dbname = copy_string(reader, writer)?;
-    let version_server = copy_string(reader, writer)?;
-    println!("{}", version_server);
-    let version_pgdump = copy_string(reader, writer)?;
-    println!("{}", version_pgdump);
+    let _version_server = copy_string(reader, writer)?;
+    let _version_pgdump = copy_string(reader, writer)?;
     Ok(())
 }
 
@@ -313,8 +310,8 @@ fn rewrite_table(dir_path_st: &str, filename: &str, orig_dbname: &str, dbname: &
                 parts_replaced.push(val);
             }
             let line_replaced = parts_replaced.join("\t");
-            writer.write_all(line_replaced.as_bytes());
-            writer.write_all("\n".as_bytes());
+            writer.write_all(line_replaced.as_bytes())?;
+            writer.write_all("\n".as_bytes())?;
         }
     }
     let file_orig_path = dir_path.join(format!("{}.orig", filename));
@@ -329,16 +326,24 @@ fn rewrite_dbname_in_tables(map: &HashMap<String, String>, dir_path: &str, orig_
         None => return Err(io::Error::new(io::ErrorKind::Other, "Table not found: babelfish_authid_user_ext"))
     };
     rewrite_table(dir_path, babelfish_authid_user_ext_filename, orig_dbname, dbname)?;
-    let babelfish_sysdatabases_filename = match map.get("babelfish_sysdatabases") {
+
+    let babelfish_function_ext_filename = match map.get("babelfish_function_ext") {
         Some(name) => name,
-        None => return Err(io::Error::new(io::ErrorKind::Other, "Table not found: babelfish_sysdatabases"))
+        None => return Err(io::Error::new(io::ErrorKind::Other, "Table not found: babelfish_function_ext"))
     };
-    rewrite_table(dir_path, babelfish_sysdatabases_filename, orig_dbname, dbname)?;
+    rewrite_table(dir_path, babelfish_function_ext_filename, orig_dbname, dbname)?;
+
     let babelfish_namespace_ext_filename = match map.get("babelfish_namespace_ext") {
         Some(name) => name,
         None => return Err(io::Error::new(io::ErrorKind::Other, "Table not found: babelfish_namespace_ext"))
     };
     rewrite_table(dir_path, babelfish_namespace_ext_filename, orig_dbname, dbname)?;
+
+    let babelfish_sysdatabases_filename = match map.get("babelfish_sysdatabases") {
+        Some(name) => name,
+        None => return Err(io::Error::new(io::ErrorKind::Other, "Table not found: babelfish_sysdatabases"))
+    };
+    rewrite_table(dir_path, babelfish_sysdatabases_filename, orig_dbname, dbname)?;
     Ok(())
 }
 
@@ -400,7 +405,7 @@ pub fn rewrite_toc(dir_path_st: &str, dbname: &str) -> Result<(), io::Error> {
     println!("{}", toc_count);
     let mut map: HashMap<String, String> = HashMap::new();
     let mut orig_dbname = "".to_string();
-    for i in 0..toc_count {
+    for _ in 0..toc_count {
         let mut te  = read_toc_entry(&mut reader)?;
         let te_tag = binopt_to_string(&te.tag);
         let te_description = binopt_to_string(&te.description);
@@ -414,7 +419,7 @@ pub fn rewrite_toc(dir_path_st: &str, dbname: &str) -> Result<(), io::Error> {
         modify_toc_entry(&mut te, &orig_dbname, dbname);
         write_toc_entry(&mut writer, &te)?;
     }
-    rewrite_dbname_in_tables(&map, dir_path_st, &orig_dbname, dbname);
+    rewrite_dbname_in_tables(&map, dir_path_st, &orig_dbname, dbname)?;
 
     let toc_orig_path = dir_path.join("toc.dat.orig");
     fs::rename(&toc_src_path, &toc_orig_path)?;

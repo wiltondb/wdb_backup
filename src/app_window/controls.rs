@@ -92,7 +92,7 @@ impl ui::Controls for AppWindowControls {
             .build(&mut self.icon)?;
 
         nwg::Window::builder()
-            .size((480, 320))
+            .size((520, 320))
             .icon(Some(&self.icon))
             .center(true)
             .title("WiltonDB Backup Tool")

@@ -132,7 +132,7 @@ impl RestoreDialog {
 
     fn run_pg_restore(pcc: &PgConnConfig, dir: &str, bbf_db: &str) -> Result<String, io::Error> {
         let cur_exe = env::current_exe()?;
-        let bin_dir = match cur_exe.parent() {
+        let _bin_dir = match cur_exe.parent() {
             Some(path) => path,
             None => { // cannot happen
                 let exe_st = cur_exe.to_str().unwrap_or("");

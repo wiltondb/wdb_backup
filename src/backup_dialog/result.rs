@@ -16,21 +16,18 @@
 
 #[derive(Default)]
 pub(super) struct BackupResult {
-    pub(super) output: String,
     pub(super) error: String
 }
 
 impl BackupResult {
-    pub(super) fn success(output: String) -> Self {
+    pub(super) fn success() -> Self {
         Self {
-            output,
             error: Default::default()
         }
     }
 
     pub(super) fn failure(error: String) -> Self {
         Self {
-            output: Default::default(),
             error
         }
     }

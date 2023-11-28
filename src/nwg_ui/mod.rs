@@ -41,7 +41,9 @@ pub use popup_args::PopupArgs;
 pub use popup_dialog::PopupDialog;
 pub use popup_join_handle::PopupJoinHandle;
 pub use sync_notice::SyncNotice;
+pub use sync_notice::SyncNoticeValue;
 pub use sync_notice::SyncNoticeSender;
+pub use sync_notice::SyncNoticeValueSender;
 
 use events::EventBuilder;
 use font_size_builder::FontSizeBuilder;

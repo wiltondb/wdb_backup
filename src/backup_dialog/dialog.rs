@@ -18,6 +18,8 @@ use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::io;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::os::windows::process::CommandExt;
 use std::path::Path;
 
@@ -34,21 +36,26 @@ pub struct BackupDialog {
 }
 
 impl BackupDialog {
-    pub(super) fn on_command_complete(&mut self, _: nwg::EventData) {
-        self.c.command_notice.receive();
+
+    pub(super) fn on_progress(&mut self, _: nwg::EventData) {
+        let msg = self.c.progress_notice.receive();
+        self.c.details_box.appendln(&msg);
+    }
+
+    pub(super) fn on_complete(&mut self, _: nwg::EventData) {
+        self.c.complete_notice.receive();
         let res = self.command_join_handle.join();
         let success = res.error.is_empty();
         self.stop_progress_bar(success.clone());
         if !success {
             self.dialog_result = BackupDialogResult::failure();
             self.c.label.set_text("Backup failed");
-            self.c.details_box.set_text(&res.error);
+            self.c.details_box.appendln(&res.error);
             self.c.copy_clipboard_button.set_enabled(true);
             self.c.close_button.set_enabled(true);
         } else {
             self.dialog_result = BackupDialogResult::success();
             self.c.label.set_text("Backup complete");
-            self.c.details_box.set_text(&res.output);
             self.c.copy_clipboard_button.set_enabled(true);
             self.c.close_button.set_enabled(true);
         }
@@ -68,9 +75,9 @@ impl BackupDialog {
         }
     }
 
-    fn run_command(pcc: &PgConnConfig, dbname: &str, dest_dir: &str) -> Result<String, io::Error> {
+    fn run_command(progress: &ui::SyncNoticeValueSender<String>, pcc: &PgConnConfig, dbname: &str, dest_dir: &str) -> Result<(), io::Error> {
         let cur_exe = env::current_exe()?;
-        let bin_dir = match cur_exe.parent() {
+        let _bin_dir = match cur_exe.parent() {
             Some(path) => path,
             None => { // cannot happen
                 let exe_st = cur_exe.to_str().unwrap_or("");
@@ -82,41 +89,41 @@ impl BackupDialog {
         //let pg_dump_exe = bin_dir.as_path().join("pg_dump.exe");
         let pg_dump_exe = Path::new("C:\\projects\\postgres\\dist\\bin\\pg_dump.exe").to_path_buf();
         env::set_var("PGPASSWORD", &pcc.password);
-        let create_no_window: u32 = 0x08000000;
-        println!("dest_dir: {}", &dest_dir);
-        match process::Command::new(pg_dump_exe.as_os_str())
-            .arg("-v")
-            .arg("-h").arg(&pcc.hostname)
-            .arg("-p").arg(&pcc.port.to_string())
-            .arg("-U").arg(&pcc.username)
-            .arg("--bbf-database-name").arg(&dbname)
-            .arg("-Fd")
+        let cmd = duct::cmd!(
+            pg_dump_exe,
+            "-v",
+            "-h", &pcc.hostname,
+            "-p", &pcc.port.to_string(),
+            "-U", &pcc.username,
+            "--bbf-database-name", &dbname,
+            "-Fd",
             //.arg("-Z6")
-            .arg("-Z0")
-            .arg("-f").arg(&dest_dir)
-            .creation_flags(create_no_window)
-            .output() {
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout[..]).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr[..]).to_string();
-                if output.status.success() {
-                    if !stdout.is_empty() || ! stderr.is_empty() {
-                        Ok(format!("{}\n{}", stdout, stderr))
-                    } else {
-                        Ok(format!("{}{}", stdout, stderr))
-                    }
-                } else {
-                    let code = match output.status.code() {
-                        Some(code) => code,
-                        None => -1
-                    };
-                    Err(io::Error::new(io::ErrorKind::Other, format!(
-                        "Backup error, status code: {}\r\n\r\nstderr: {}\r\nstdout: {}", code, stderr, stdout)))
-                }
+            "-Z0",
+            "-f", &dest_dir
+        ).before_spawn(|pcmd| {
+            // create no window
+            let _ = pcmd.creation_flags(0x08000000);
+            Ok(())
+        });
+        let reader = cmd.stderr_to_stdout().reader()?;
+        for line in BufReader::new(&reader).lines() {
+            match line {
+                Ok(ln) => progress.send_value(ln),
+                Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!(
+                    "Process output read failure: {}", e)))
+            }
+        };
+        match reader.try_wait() {
+            Ok(opt) => match opt {
+                Some(_) => { },
+                None => return Err(io::Error::new(io::ErrorKind::Other, format!(
+                        "Process failure")))
             },
-            Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!(
-                "Backup spawn error: {}", e)))
+            Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!(
+                "Process failure: {}", e)))
         }
+
+        Ok(())
     }
 
     fn zip_dest_directory(dest_dir: &str, filename: &str) -> Result<(), io::Error> {
@@ -170,24 +177,38 @@ impl BackupDialog {
         Ok((dir_path_st, filename))
     }
 
-    fn run_backup(pcc: &PgConnConfig, pargs: &PgDumpArgs) -> BackupResult {
+    fn run_backup(progress: &ui::SyncNoticeValueSender<String>, pcc: &PgConnConfig, pargs: &PgDumpArgs) -> BackupResult {
+        progress.send_value("Running backup ...");
+
         // ensure no dest dir
         let (dest_dir, filename) = match Self::prepare_dest_dir(&pargs.parent_dir, &pargs.dest_filename) {
-            Ok(st) => st,
+            Ok(tup) => tup,
             Err(e) => return BackupResult::failure(e.to_string())
         };
+        let dest_file = Path::new(&pargs.parent_dir).join(Path::new(&filename)).to_string_lossy().to_string();
+        progress.send_value(format!("Backup file: {}", dest_file));
+
         // spawn and wait
-        match BackupDialog::run_command(pcc, &pargs.dbname, &dest_dir) {
-            Ok(output) => {
-                // zip results
-                match Self::zip_dest_directory(&dest_dir, &filename) {
-                    Ok(_) => BackupResult::success(output),
-                    Err(e) => return BackupResult::failure(format!(
-                        "Error zipping destination directory, path: {}, error: {}", &dest_dir, e))
-                }
-            },
-            Err(e) => BackupResult::failure(e.to_string())
-        }
+        progress.send_value("Running pg_dump ....");
+        match BackupDialog::run_command(progress, pcc, &pargs.dbname, &dest_dir) {
+            Ok(_) => { },
+            Err(e) => {
+                return BackupResult::failure(e.to_string());
+            }
+        };
+
+        // zip results
+        progress.send_value("Zipping destination directory ....");
+        match Self::zip_dest_directory(&dest_dir, &filename) {
+            Ok(_) => {},
+            Err(e) => {
+                return BackupResult::failure(format!(
+                    "Error zipping destination directory, path: {}, error: {}", &dest_dir, e));
+            }
+        };
+        progress.send_value("Backup complete");
+
+        BackupResult::success()
     }
 }
 
@@ -206,17 +227,18 @@ impl ui::PopupDialog<BackupDialogArgs, BackupDialogResult> for BackupDialog {
     }
 
     fn init(&mut self) {
-        let sender = self.c.command_notice.sender();
+        let complete_sender = self.c.complete_notice.sender();
+        let progress_sender = self.c.progress_notice.sender();
         let pcc: PgConnConfig = self.args.pg_conn_config.clone();
         let pargs = self.args.pg_dump_args.clone();
         let join_handle = thread::spawn(move || {
             let start = Instant::now();
-            let res = BackupDialog::run_backup(&pcc, &pargs);
+            let res = BackupDialog::run_backup(&progress_sender, &pcc, &pargs);
             let remaining = 1000 - start.elapsed().as_millis() as i64;
             if remaining > 0 {
                 thread::sleep(Duration::from_millis(remaining as u64));
             }
-            sender.send();
+            complete_sender.send();
             res
         });
         self.command_join_handle = ui::PopupJoinHandle::from(join_handle);

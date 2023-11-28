@@ -35,13 +35,13 @@ pub struct SyncNoticeValueSender<T: Sync + Send + Default> {
 
 impl<T: Sync + Send + Default> SyncNoticeValueSender<T> {
     pub fn send(&self) {
-        self.send_result(Default::default());
+        self.send_value::<T>(Default::default());
     }
 
-    pub fn send_result(&self, t: T) {
+    pub fn send_value<R: Into<T>>(&self, r: R) {
         self.sender.as_ref().expect("Sender not initialized").notice();
         // best effort, receiver may have been destroyed already
-        let _ = self.tx.as_ref().expect("Sender not initialized").send(t);
+        let _ = self.tx.as_ref().expect("Sender not initialized").send(r.into());
     }
 }
 
