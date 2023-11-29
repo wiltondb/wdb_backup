@@ -94,7 +94,7 @@ impl RestoreDialog {
         }
     }
 
-    fn unzip_file(zipfile: &str) -> Result<String, io::Error> {
+    fn unzip_file(progress: &ui::SyncNoticeValueSender<String>, zipfile: &str) -> Result<String, io::Error> {
         let file_path = Path::new(zipfile);
         let parent_dir = match file_path.parent() {
             Some(dir) => dir,
@@ -106,7 +106,10 @@ impl RestoreDialog {
             None => return Err(io::Error::new(io::ErrorKind::Other, format!(
                 "Error reading parent directory name")))
         };
-        match unzip_directory(zipfile, parent_dir_st) {
+        let listener = |en: &str| {
+            progress.send_value(en);
+        };
+        match unzip_directory(zipfile, parent_dir_st, &listener) {
             Ok(dirname) => {
                 let dir_path = parent_dir.join(Path::new(&dirname));
                 match dir_path.to_str() {
@@ -179,7 +182,7 @@ impl RestoreDialog {
             "-U", &pcc.username,
             "-d", bbf_db,
             "-F", "d",
-            "-j", "4",
+            "-j", "1",
             dir
         ).before_spawn(|pcmd| {
             // create no window
@@ -246,44 +249,39 @@ impl RestoreDialog {
         progress.send_value(format!("Running restore into DB: {} ...", ra.dest_db_name));
 
         // db check
-        match Self::check_db_does_not_exist(pcc, &ra.dest_db_name) {
-            Ok(_) => {},
-            Err(e) => return RestoreResult::failure(format!("{}", e))
+        if let Err(e) = Self::check_db_does_not_exist(pcc, &ra.dest_db_name) {
+            return RestoreResult::failure(format!("{}", e))
         }
 
         // unzip
         progress.send_value(format!("Unzipping file: {} ...", &ra.zip_file_path));
-        let dir = match Self::unzip_file(&ra.zip_file_path) {
+        let dir = match Self::unzip_file(progress, &ra.zip_file_path) {
             Ok(dir) => dir,
             Err(e) => return RestoreResult::failure(format!("{}", e))
         };
 
         // rewrite
         progress.send_value("Updating DB name ...");
-        match rewrite_toc(&dir, &ra.dest_db_name) {
-            Ok(_) => {},
-            Err(e) => return RestoreResult::failure(format!("{}", e))
+        if let Err(e) = rewrite_toc(&dir, &ra.dest_db_name) {
+            return RestoreResult::failure(format!("{}", e))
         }
 
         // global data
         progress.send_value("Restoring roles ...");
-        match  Self::restore_global_data(pcc, &ra.dest_db_name) {
-            Ok(_) => {},
-            Err(e) => return RestoreResult::failure(format!("{}", e))
+        if let Err(e) = Self::restore_global_data(pcc, &ra.dest_db_name) {
+            return RestoreResult::failure(format!("{}", e))
         }
 
         // run restore
         progress.send_value("Running pg_restore ...");
-        match Self::run_pg_restore(progress, pcc, &dir, &ra.bbf_db_name) {
-            Ok(_) => RestoreResult::success(),
-            Err(e) => return RestoreResult::failure(format!("{}", e))
+        if let Err(e) = Self::run_pg_restore(progress, pcc, &dir, &ra.bbf_db_name) {
+            return RestoreResult::failure(format!("{}", e))
         };
 
         // clean up
         progress.send_value("Cleaning up temp directory ...");
-        match fs::remove_dir_all(Path::new(&dir)) {
-            Ok(_) => {},
-            Err(e) => return RestoreResult::failure(format!("{}", e))
+        if let Err(e) = fs::remove_dir_all(Path::new(&dir)) {
+            return RestoreResult::failure(format!("{}", e))
         };
 
         progress.send_value("Restore complete");

@@ -166,9 +166,8 @@ impl BackupDialog {
         let listener = |en: &str| {
             progress.send_value(en);
         };
-        match zip_directory(dest_dir_st, dest_file_st, 0, &listener) {
-            Ok(_) => {},
-            Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e.to_string()))
+        if let Err(e) = zip_directory(dest_dir_st, dest_file_st, 0, &listener) {
+            return Err(io::Error::new(io::ErrorKind::Other, e.to_string()))
         };
         std::fs::remove_dir_all(dest_dir_path)?;
         Ok(())
@@ -211,21 +210,15 @@ impl BackupDialog {
 
         // spawn and wait
         progress.send_value("Running pg_dump ....");
-        match BackupDialog::run_command(progress, pcc, &pargs.dbname, &dest_dir) {
-            Ok(_) => { },
-            Err(e) => {
-                return BackupResult::failure(e.to_string());
-            }
+        if let Err(e) = BackupDialog::run_command(progress, pcc, &pargs.dbname, &dest_dir) {
+            return BackupResult::failure(e.to_string());
         };
 
         // zip results
         progress.send_value("Zipping destination directory ....");
-        match Self::zip_dest_directory(progress, &dest_dir, &filename) {
-            Ok(_) => {},
-            Err(e) => {
-                return BackupResult::failure(format!(
-                    "Error zipping destination directory, path: {}, error: {}", &dest_dir, e));
-            }
+        if let Err(e) = Self::zip_dest_directory(progress, &dest_dir, &filename) {
+            return BackupResult::failure(format!(
+                "Error zipping destination directory, path: {}, error: {}", &dest_dir, e));
         };
 
         progress.send_value("Backup complete");

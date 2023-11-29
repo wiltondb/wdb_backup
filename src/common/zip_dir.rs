@@ -135,13 +135,31 @@ pub fn zip_directory<F: Fn (&str) -> ()>(src_dir: &str, dst_file: &str, comp_lev
     Ok(())
 }
 
-pub fn unzip_directory(zip_file: &str, dest_dir: &str) -> zip::result::ZipResult<String> {
+pub fn unzip_directory<F: Fn (&str) -> ()>(zip_file: &str, dest_dir: &str, listener: &F) -> zip::result::ZipResult<String> {
     let file = match File::open(Path::new(zip_file)) {
         Ok(file) => file,
         Err(e) => return Err(ZipError::Io(e))
     };
     let mut zip = zip::ZipArchive::new(BufReader::new(file))?;
-    zip.extract(Path::new(dest_dir))?;
+    for i in 0..zip.len() {
+        let mut file = zip.by_index(i)?;
+        listener(file.name());
+        let filepath = file
+            .enclosed_name()
+            .ok_or(ZipError::InvalidArchive("Invalid file path"))?;
+        let outpath = Path::new(dest_dir).join(filepath);
+        if file.name().ends_with('/') {
+            fs::create_dir_all(&outpath)?;
+        } else {
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    fs::create_dir_all(p)?;
+                }
+            }
+            let mut outfile = fs::File::create(&outpath)?;
+            io::copy(&mut file, &mut outfile)?;
+        }
+    }
     let entry = zip.by_index(0)?;
     Ok(entry.name().to_string())
 }

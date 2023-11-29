@@ -223,8 +223,12 @@ impl AppWindow {
                 self.c.restore_src_file_input.set_text(&fpath_st);
                 if let Some(filename) = Path::new(&file).file_name() {
                     let name_st = filename.to_string_lossy().to_string();
-                    let parts: Vec<&str> = name_st.split('_').collect();
-                    self.c.restore_dbname_input.set_text(parts[0]);
+                    let ext = match Path::new(&file).extension() {
+                        Some(ext) => format!(".{}", ext.to_string_lossy().to_string()),
+                        None => "".to_string()
+                    };
+                    let dbname: String = name_st.chars().take(name_st.len() - ext.len()).collect();
+                    self.c.restore_dbname_input.set_text(&dbname);
                 }
             }
         }

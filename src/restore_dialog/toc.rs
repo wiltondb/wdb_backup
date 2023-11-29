@@ -415,7 +415,6 @@ pub fn rewrite_toc(dir_path_st: &str, dbname: &str) -> Result<(), io::Error> {
             orig_dbname = te_tag.chars().take(te_tag.len() - "_dbo".len()).collect();
         }
         if !te_filename.is_empty() {
-            println!("{}: {}", &te_tag, &te_filename);
             map.insert(te_tag, te_filename);
         }
         modify_toc_entry(&mut te, &orig_dbname, dbname);
