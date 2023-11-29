@@ -15,6 +15,9 @@
  */
 
 use std::collections::HashMap;
+use flate2::write::GzEncoder;
+use flate2::bufread::GzDecoder;
+use flate2::Compression;
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -48,8 +51,7 @@ struct TocEntry {
     filename: Option<Vec<u8>>,
 }
 
-
-fn copy_magic(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Result<(), io::Error> {
+fn copy_magic<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<(), io::Error> {
     let mut buf = [0u8; 5];
     reader.read_exact( &mut buf)?;
     if [b'P', b'G', b'D', b'M', b'P'] != buf {
@@ -59,7 +61,7 @@ fn copy_magic(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Res
     Ok(())
 }
 
-fn copy_version(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Result<(), io::Error> {
+fn copy_version<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<(), io::Error> {
     let mut buf = [0u8; 3];
     reader.read_exact( &mut buf)?;
     if 1u8 != buf[0] && 14u8 != buf[1] {
@@ -69,7 +71,7 @@ fn copy_version(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> R
     Ok(())
 }
 
-fn copy_flags(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Result<(), io::Error> {
+fn copy_flags<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<(), io::Error> {
     let mut buf = [0u8; 3];
     reader.read_exact( &mut buf)?;
     if 4u8 != buf[0] {
@@ -86,7 +88,7 @@ fn copy_flags(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Res
 }
 
 // todo: int size
-fn write_int(writer: &mut BufWriter<File>, val: i32) -> Result<(), io::Error> {
+fn write_int<W: Write>(writer: &mut W, val: i32) -> Result<(), io::Error> {
     let mut buf = [0u8; 5];
     let uval = if val >= 0 {
         buf[0] = 0;
@@ -103,7 +105,7 @@ fn write_int(writer: &mut BufWriter<File>, val: i32) -> Result<(), io::Error> {
     Ok(())
 }
 
-fn read_int(reader: &mut BufReader<File>) -> Result<i32, io::Error> {
+fn read_int<R: Read>(reader: &mut R) -> Result<i32, io::Error> {
     let mut buf = [0u8; 5];
     reader.read_exact( &mut buf)?;
     let mut res: u32 = 0;
@@ -124,13 +126,13 @@ fn read_int(reader: &mut BufReader<File>) -> Result<i32, io::Error> {
     }
 }
 
-fn copy_int(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Result<i32, io::Error> {
+fn copy_int<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<i32, io::Error> {
     let val = read_int(reader)?;
     write_int(writer, val)?;
     Ok(val)
 }
 
-fn copy_timestamp(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Result<NaiveDateTime, io::Error> {
+fn copy_timestamp<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<NaiveDateTime, io::Error> {
     use chrono::naive::NaiveDate;
     use chrono::naive::NaiveTime;
     let sec = copy_int(reader, writer)?;
@@ -147,7 +149,7 @@ fn copy_timestamp(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) ->
     Ok(NaiveDateTime::new(date, time))
 }
 
-fn read_string_opt(reader: &mut BufReader<File>) -> Result<Option<Vec<u8>>, io::Error> {
+fn read_string_opt<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>, io::Error> {
     let len: i32 = read_int(reader)?;
     if len < 0 {
         return Ok(None);
@@ -163,7 +165,7 @@ fn read_string_opt(reader: &mut BufReader<File>) -> Result<Option<Vec<u8>>, io::
     Ok(Some(vec))
 }
 
-fn write_string_opt(writer: &mut BufWriter<File>, opt: &Option<Vec<u8>>) -> Result<(), io::Error> {
+fn write_string_opt<W: Write>(writer: &mut W, opt: &Option<Vec<u8>>) -> Result<(), io::Error> {
     match opt {
         Some(bytes) => {
             write_int(writer, bytes.len() as i32)?;
@@ -176,13 +178,13 @@ fn write_string_opt(writer: &mut BufWriter<File>, opt: &Option<Vec<u8>>) -> Resu
     Ok(())
 }
 
-fn copy_string_opt(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Result<Option<Vec<u8>>, io::Error> {
+fn copy_string_opt<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<Option<Vec<u8>>, io::Error> {
     let opt = read_string_opt(reader)?;
     write_string_opt(writer, &opt)?;
     Ok(opt)
 }
 
-fn copy_string(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Result<String, io::Error> {
+fn copy_string<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<String, io::Error> {
     let bin_opt = copy_string_opt(reader, writer)?;
     match bin_opt {
         Some(bin) => Ok(String::from_utf8_lossy(bin.as_slice()).to_string()),
@@ -210,7 +212,7 @@ fn print_bin_str(label: &str, bin_opt: &Option<Vec<u8>>) {
     }
 }
 
-fn read_toc_entry(reader: &mut BufReader<File>) -> Result<TocEntry, io::Error> {
+fn read_toc_entry<R: Read>(reader: &mut R) -> Result<TocEntry, io::Error> {
     let dump_id = read_int(reader)?;
     let had_dumper = read_int(reader)?;
     let table_oid = read_string_opt(reader)?;
@@ -255,7 +257,7 @@ fn read_toc_entry(reader: &mut BufReader<File>) -> Result<TocEntry, io::Error> {
     })
 }
 
-fn write_toc_entry(writer: &mut BufWriter<File>, te: &TocEntry) -> Result<(), io::Error> {
+fn write_toc_entry<W: Write>(writer: &mut W, te: &TocEntry) -> Result<(), io::Error> {
     write_int(writer, te.dump_id)?;
     write_int(writer, te.had_dumper)?;
     write_string_opt(writer, &te.table_oid)?;
@@ -279,7 +281,7 @@ fn write_toc_entry(writer: &mut BufWriter<File>, te: &TocEntry) -> Result<(), io
     Ok(())
 }
 
-fn copy_header(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Result<(), io::Error> {
+fn copy_header<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<(), io::Error> {
     copy_magic(reader, writer)?;
     copy_version(reader, writer)?;
     copy_flags(reader, writer)?;
@@ -293,11 +295,11 @@ fn copy_header(reader: &mut BufReader<File>, writer: &mut BufWriter<File>) -> Re
 
 fn rewrite_table(dir_path_st: &str, filename: &str, orig_dbname: &str, dbname: &str) -> Result<(), io::Error> {
     let dir_path = Path::new(dir_path_st);
-    let file_src_path = dir_path.join(filename);
-    let file_dest_path = dir_path.join(format!("{}.rewritten", filename));
+    let file_src_path = dir_path.join(format!("{}.gz", filename));
+    let file_dest_path = dir_path.join(format!("{}.rewritten.gz", filename));
     {
-        let reader = BufReader::new(File::open(&file_src_path)?);
-        let mut writer = BufWriter::new(File::create(&file_dest_path)?);
+        let reader = BufReader::new(GzDecoder::new(BufReader::new(File::open(&file_src_path)?)));
+        let mut writer = GzEncoder::new(BufWriter::new(File::create(&file_dest_path)?), Compression::default());
         for ln in reader.lines() {
             let line = ln?;
             let mut parts_replaced: Vec<String> = Vec::new();
@@ -314,7 +316,7 @@ fn rewrite_table(dir_path_st: &str, filename: &str, orig_dbname: &str, dbname: &
             writer.write_all("\n".as_bytes())?;
         }
     }
-    let file_orig_path = dir_path.join(format!("{}.orig", filename));
+    let file_orig_path = dir_path.join(format!("{}.orig.gz", filename));
     fs::rename(&file_src_path, &file_orig_path)?;
     fs::rename(&file_dest_path, &file_src_path)?;
     Ok(())
@@ -402,7 +404,6 @@ pub fn rewrite_toc(dir_path_st: &str, dbname: &str) -> Result<(), io::Error> {
 
     copy_header(&mut reader, &mut writer)?;
     let toc_count = copy_int(&mut reader, &mut writer)?;
-    println!("{}", toc_count);
     let mut map: HashMap<String, String> = HashMap::new();
     let mut orig_dbname = "".to_string();
     for _ in 0..toc_count {
@@ -414,6 +415,7 @@ pub fn rewrite_toc(dir_path_st: &str, dbname: &str) -> Result<(), io::Error> {
             orig_dbname = te_tag.chars().take(te_tag.len() - "_dbo".len()).collect();
         }
         if !te_filename.is_empty() {
+            println!("{}: {}", &te_tag, &te_filename);
             map.insert(te_tag, te_filename);
         }
         modify_toc_entry(&mut te, &orig_dbname, dbname);

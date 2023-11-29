@@ -22,6 +22,8 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::os::windows::process::CommandExt;
 use std::path::Path;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 use super::*;
 use crate::backup_dialog::args::PgDumpArgs;
@@ -32,14 +34,27 @@ pub struct BackupDialog {
 
     args: BackupDialogArgs,
     command_join_handle: ui::PopupJoinHandle<BackupResult>,
-    dialog_result: BackupDialogResult
+    dialog_result: BackupDialogResult,
+
+    progress_pending: Vec<String>,
+    progress_last_updated: u128,
 }
 
 impl BackupDialog {
 
     pub(super) fn on_progress(&mut self, _: nwg::EventData) {
         let msg = self.c.progress_notice.receive();
-        self.c.details_box.appendln(&msg);
+        self.progress_pending.push(msg);
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::from_secs(0))
+            .as_millis();
+        if now - self.progress_last_updated > 100 {
+            let joined = self.progress_pending.join("\r\n");
+            self.progress_pending.clear();
+            self.progress_last_updated = now;
+            self.c.details_box.appendln(&joined);
+        }
     }
 
     pub(super) fn on_complete(&mut self, _: nwg::EventData) {
@@ -50,7 +65,9 @@ impl BackupDialog {
         if !success {
             self.dialog_result = BackupDialogResult::failure();
             self.c.label.set_text("Backup failed");
-            self.c.details_box.appendln(&res.error);
+            self.progress_pending.push(res.error);
+            let joined = self.progress_pending.join("\r\n");
+            self.c.details_box.appendln(&joined);
             self.c.copy_clipboard_button.set_enabled(true);
             self.c.close_button.set_enabled(true);
         } else {
@@ -59,6 +76,7 @@ impl BackupDialog {
             self.c.copy_clipboard_button.set_enabled(true);
             self.c.close_button.set_enabled(true);
         }
+        self.progress_pending.clear();
     }
 
     pub(super) fn copy_to_clipboard(&mut self, _: nwg::EventData) {
@@ -87,7 +105,7 @@ impl BackupDialog {
         };
         // todo
         //let pg_dump_exe = bin_dir.as_path().join("pg_dump.exe");
-        let pg_dump_exe = Path::new("C:\\projects\\postgres\\dist\\bin\\pg_dump.exe").to_path_buf();
+        let pg_dump_exe = Path::new("C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin\\pg_dump.exe").to_path_buf();
         env::set_var("PGPASSWORD", &pcc.password);
         let cmd = duct::cmd!(
             pg_dump_exe,
@@ -96,9 +114,9 @@ impl BackupDialog {
             "-p", &pcc.port.to_string(),
             "-U", &pcc.username,
             "--bbf-database-name", &dbname,
-            "-Fd",
-            //.arg("-Z6")
-            "-Z0",
+            "-F", "d",
+            "-Z", "6",
+            "-j", "4",
             "-f", &dest_dir
         ).before_spawn(|pcmd| {
             // create no window

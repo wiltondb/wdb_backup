@@ -142,7 +142,7 @@ impl RestoreDialog {
         };
         // todo
         //let pg_restore_exe = bin_dir.as_path().join("pg_restore.exe");
-        let pg_restore_exe = Path::new("C:\\projects\\postgres\\dist\\bin\\pg_restore.exe").to_path_buf();
+        let pg_restore_exe = Path::new("C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin\\pg_restore.exe").to_path_buf();
         env::set_var("PGPASSWORD", &pcc.password);
         let create_no_window: u32 = 0x08000000;
         match process::Command::new(pg_restore_exe.as_os_str())
@@ -151,7 +151,8 @@ impl RestoreDialog {
             .arg("-p").arg(&pcc.port.to_string())
             .arg("-U").arg(&pcc.username)
             .arg("-d").arg(bbf_db)
-            .arg("-Fd")
+            .arg("-F").arg("d")
+            .arg("-j").arg("1")
             .arg(dir)
             .creation_flags(create_no_window)
             .output() {
