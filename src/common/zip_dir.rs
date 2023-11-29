@@ -67,7 +67,9 @@ fn read_dir_paths(dir: &Path) -> Result<Vec<PathBuf>, io::Error> {
     Ok(res)
 }
 
-fn zip_file<T: io::Seek + io::Write>(zip: &mut ZipWriter<T>, root_dir: &Path, path: &Path) -> ZipResult<()> {
+fn zip_file
+        <T: io::Seek + io::Write, F: Fn (&str) -> ()>
+        (zip: &mut ZipWriter<T>, root_dir: &Path, path: &Path, listener: &F) -> ZipResult<()> {
     let file = File::open(path)?;
     let meta = file.metadata()?;
     let system_time = meta.modified()?;
@@ -80,13 +82,16 @@ fn zip_file<T: io::Seek + io::Write>(zip: &mut ZipWriter<T>, root_dir: &Path, pa
         None => path.to_path_buf()
     };
     let name = path_to_string(&rel_path)?;
+    listener(&name);
     zip.start_file(name, options)?;
     let mut reader = BufReader::new(file);
     std::io::copy(&mut reader, zip)?;
     Ok(())
 }
 
-fn zip_dir_recursive<T: io::Seek + io::Write>(zip: &mut ZipWriter<T>, root_dir: &Path, dir: &Path) -> ZipResult<()> {
+fn zip_dir_recursive
+        <T: io::Seek + io::Write, F: Fn (&str) -> ()>
+        (zip: &mut ZipWriter<T>, root_dir: &Path, dir: &Path, listener: &F) -> ZipResult<()> {
     if !dir.is_dir() {
         return Err(ZipError::FileNotFound);
     }
@@ -95,6 +100,7 @@ fn zip_dir_recursive<T: io::Seek + io::Write>(zip: &mut ZipWriter<T>, root_dir: 
         None => dir.to_path_buf()
     };
     let name = path_to_string(&rel_path)?;
+    listener(&name);
     let medatata = dir.metadata()?;
     let system_time = medatata.modified()?;
     let zip_time = time_to_zip_time(&system_time);
@@ -103,16 +109,16 @@ fn zip_dir_recursive<T: io::Seek + io::Write>(zip: &mut ZipWriter<T>, root_dir: 
     zip.add_directory(name, options)?;
     for path in read_dir_paths(dir)? {
         if path.is_dir() {
-            zip_dir_recursive(zip, root_dir, &path)?;
+            zip_dir_recursive(zip, root_dir, &path, listener)?;
         } else {
-            zip_file(zip, root_dir, &path)?;
+            zip_file(zip, root_dir, &path, listener)?;
         }
     }
     zip.finish()?;
     Ok(())
 }
 
-pub fn zip_directory(src_dir: &str, dst_file: &str, comp_level:  u8) -> zip::result::ZipResult<()> {
+pub fn zip_directory<F: Fn (&str) -> ()>(src_dir: &str, dst_file: &str, comp_level: u8, listener: &F) -> zip::result::ZipResult<()> {
     let src_dir_path = Path::new(src_dir);
     if !src_dir_path.is_dir() {
         return Err(ZipError::FileNotFound);
@@ -125,7 +131,7 @@ pub fn zip_directory(src_dir: &str, dst_file: &str, comp_level:  u8) -> zip::res
         Err(e) => return Err(ZipError::Io(e))
     };
     let mut zip = zip::ZipWriter::new(BufWriter::new(file));
-    zip_dir_recursive(&mut zip, &src_dir_path, &src_dir_path)?;
+    zip_dir_recursive(&mut zip, &src_dir_path, &src_dir_path, listener)?;
     Ok(())
 }
 

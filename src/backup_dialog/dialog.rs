@@ -145,7 +145,7 @@ impl BackupDialog {
         Ok(())
     }
 
-    fn zip_dest_directory(dest_dir: &str, filename: &str) -> Result<(), io::Error> {
+    fn zip_dest_directory(progress: &ui::SyncNoticeValueSender<String>, dest_dir: &str, filename: &str) -> Result<(), io::Error> {
         let dest_dir_path = Path::new(dest_dir);
         let parent_path = match dest_dir_path.parent() {
             Some(path) => path,
@@ -163,11 +163,13 @@ impl BackupDialog {
             None => return Err(io::Error::new(io::ErrorKind::PermissionDenied, format!(
                 "Error accessing destination file")))
         };
-        println!("dest_file_st: {}", dest_file_st);
-        match zip_directory(dest_dir_st, dest_file_st, 0) {
+        let listener = |en: &str| {
+            progress.send_value(en);
+        };
+        match zip_directory(dest_dir_st, dest_file_st, 0, &listener) {
             Ok(_) => {},
             Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e.to_string()))
-        }
+        };
         std::fs::remove_dir_all(dest_dir_path)?;
         Ok(())
     }
@@ -218,7 +220,7 @@ impl BackupDialog {
 
         // zip results
         progress.send_value("Zipping destination directory ....");
-        match Self::zip_dest_directory(&dest_dir, &filename) {
+        match Self::zip_dest_directory(progress, &dest_dir, &filename) {
             Ok(_) => {},
             Err(e) => {
                 return BackupResult::failure(format!(
