@@ -15,9 +15,13 @@
  */
 
 use std::env;
+use std::fs;
 use std::io;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::os::windows::process::CommandExt;
 use std::path::Path;
+use std::time;
 
 use super::*;
 use crate::restore_dialog::args::PgRestoreArgs;
@@ -29,27 +33,50 @@ pub struct RestoreDialog {
 
     args: RestoreDialogArgs,
     command_join_handle: ui::PopupJoinHandle<RestoreResult>,
-    dialog_result: RestoreDialogResult
+    dialog_result: RestoreDialogResult,
+
+    progress_pending: Vec<String>,
+    progress_last_updated: u128,
 }
 
 impl RestoreDialog {
-    pub(super) fn on_command_complete(&mut self, _: nwg::EventData) {
-        self.c.command_notice.receive();
+
+    pub(super) fn on_progress(&mut self, _: nwg::EventData) {
+        let msg = self.c.progress_notice.receive();
+        self.progress_pending.push(msg);
+        let now = time::SystemTime::now()
+            .duration_since(time::UNIX_EPOCH)
+            .unwrap_or(Duration::from_secs(0))
+            .as_millis();
+        if now - self.progress_last_updated > 100 {
+            let joined = self.progress_pending.join("\r\n");
+            self.progress_pending.clear();
+            self.progress_last_updated = now;
+            self.c.details_box.appendln(&joined);
+        }
+    }
+
+    pub(super) fn on_complete(&mut self, _: nwg::EventData) {
+        self.c.complete_notice.receive();
         let res = self.command_join_handle.join();
         let success = res.error.is_empty();
         self.stop_progress_bar(success.clone());
         if !success {
             self.dialog_result = RestoreDialogResult::failure();
             self.c.label.set_text("Restore failed");
-            self.c.details_box.set_text(&res.error);
+            self.progress_pending.push(res.error);
             self.c.copy_clipboard_button.set_enabled(true);
             self.c.close_button.set_enabled(true);
         } else {
             self.dialog_result = RestoreDialogResult::success();
             self.c.label.set_text("Restore complete");
-            self.c.details_box.set_text(&res.output);
             self.c.copy_clipboard_button.set_enabled(true);
             self.c.close_button.set_enabled(true);
+        }
+        if self.progress_pending.len() > 0 {
+            let joined = self.progress_pending.join("\r\n");
+            self.c.details_box.appendln(&joined);
+            self.progress_pending.clear();
         }
     }
 
@@ -130,7 +157,7 @@ impl RestoreDialog {
         Ok(())
     }
 
-    fn run_pg_restore(pcc: &PgConnConfig, dir: &str, bbf_db: &str) -> Result<String, io::Error> {
+    fn run_pg_restore(progress: &ui::SyncNoticeValueSender<String>, pcc: &PgConnConfig, dir: &str, bbf_db: &str) -> Result<(), io::Error> {
         let cur_exe = env::current_exe()?;
         let _bin_dir = match cur_exe.parent() {
             Some(path) => path,
@@ -144,6 +171,41 @@ impl RestoreDialog {
         //let pg_restore_exe = bin_dir.as_path().join("pg_restore.exe");
         let pg_restore_exe = Path::new("C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin\\pg_restore.exe").to_path_buf();
         env::set_var("PGPASSWORD", &pcc.password);
+        let cmd = duct::cmd!(
+            pg_restore_exe,
+            "-v",
+            "-h", &pcc.hostname,
+            "-p", &pcc.port.to_string(),
+            "-U", &pcc.username,
+            "-d", bbf_db,
+            "-F", "d",
+            "-j", "4",
+            dir
+        ).before_spawn(|pcmd| {
+            // create no window
+            let _ = pcmd.creation_flags(0x08000000);
+            Ok(())
+        });
+        let reader = cmd.stderr_to_stdout().reader()?;
+        for line in BufReader::new(&reader).lines() {
+            match line {
+                Ok(ln) => progress.send_value(ln),
+                Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!(
+                    "pg_restore process failure: {}", e)))
+            }
+        };
+        match reader.try_wait() {
+            Ok(opt) => match opt {
+                Some(_) => { },
+                None => return Err(io::Error::new(io::ErrorKind::Other, format!(
+                    "pg_restore process failure")))
+            },
+            Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!(
+                "pg_restore process failure: {}", e)))
+        }
+
+        Ok(())
+        /*
         let create_no_window: u32 = 0x08000000;
         match process::Command::new(pg_restore_exe.as_os_str())
             .arg("-v")
@@ -177,29 +239,55 @@ impl RestoreDialog {
             Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!(
                 "Restore spawn error: {}", e)))
         }
+         */
     }
 
-    fn run_restore(pcc: &PgConnConfig, ra: &PgRestoreArgs) -> RestoreResult {
+    fn run_restore(progress: &ui::SyncNoticeValueSender<String>, pcc: &PgConnConfig, ra: &PgRestoreArgs) -> RestoreResult {
+        progress.send_value(format!("Running restore into DB: {} ...", ra.dest_db_name));
+
+        // db check
         match Self::check_db_does_not_exist(pcc, &ra.dest_db_name) {
             Ok(_) => {},
             Err(e) => return RestoreResult::failure(format!("{}", e))
         }
+
+        // unzip
+        progress.send_value(format!("Unzipping file: {} ...", &ra.zip_file_path));
         let dir = match Self::unzip_file(&ra.zip_file_path) {
             Ok(dir) => dir,
             Err(e) => return RestoreResult::failure(format!("{}", e))
         };
+
+        // rewrite
+        progress.send_value("Updating DB name ...");
         match rewrite_toc(&dir, &ra.dest_db_name) {
             Ok(_) => {},
             Err(e) => return RestoreResult::failure(format!("{}", e))
         }
+
+        // global data
+        progress.send_value("Restoring roles ...");
         match  Self::restore_global_data(pcc, &ra.dest_db_name) {
             Ok(_) => {},
             Err(e) => return RestoreResult::failure(format!("{}", e))
         }
-        match Self::run_pg_restore(pcc, &dir, &ra.bbf_db_name) {
-            Ok(output) => RestoreResult::success(output),
+
+        // run restore
+        progress.send_value("Running pg_restore ...");
+        match Self::run_pg_restore(progress, pcc, &dir, &ra.bbf_db_name) {
+            Ok(_) => RestoreResult::success(),
             Err(e) => return RestoreResult::failure(format!("{}", e))
-        }
+        };
+
+        // clean up
+        progress.send_value("Cleaning up temp directory ...");
+        match fs::remove_dir_all(Path::new(&dir)) {
+            Ok(_) => {},
+            Err(e) => return RestoreResult::failure(format!("{}", e))
+        };
+
+        progress.send_value("Restore complete");
+        RestoreResult::success()
     }
 }
 
@@ -218,17 +306,18 @@ impl ui::PopupDialog<RestoreDialogArgs, RestoreDialogResult> for RestoreDialog {
     }
 
     fn init(&mut self) {
-        let sender = self.c.command_notice.sender();
+        let complete_sender = self.c.complete_notice.sender();
+        let progress_sender = self.c.progress_notice.sender();
         let pcc: PgConnConfig = self.args.pg_conn_config.clone();
         let pra: PgRestoreArgs = self.args.pg_restore_args.clone();
         let join_handle = thread::spawn(move || {
             let start = Instant::now();
-            let res = RestoreDialog::run_restore(&pcc, &pra);
+            let res = RestoreDialog::run_restore(&progress_sender, &pcc, &pra);
             let remaining = 1000 - start.elapsed().as_millis() as i64;
             if remaining > 0 {
                 thread::sleep(Duration::from_millis(remaining as u64));
             }
-            sender.send();
+            complete_sender.send();
             res
         });
         self.command_join_handle = ui::PopupJoinHandle::from(join_handle);

@@ -22,8 +22,7 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::os::windows::process::CommandExt;
 use std::path::Path;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use std::time;
 
 use super::*;
 use crate::backup_dialog::args::PgDumpArgs;
@@ -45,8 +44,8 @@ impl BackupDialog {
     pub(super) fn on_progress(&mut self, _: nwg::EventData) {
         let msg = self.c.progress_notice.receive();
         self.progress_pending.push(msg);
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
+        let now = time::SystemTime::now()
+            .duration_since(time::UNIX_EPOCH)
             .unwrap_or(Duration::from_secs(0))
             .as_millis();
         if now - self.progress_last_updated > 100 {
@@ -66,8 +65,6 @@ impl BackupDialog {
             self.dialog_result = BackupDialogResult::failure();
             self.c.label.set_text("Backup failed");
             self.progress_pending.push(res.error);
-            let joined = self.progress_pending.join("\r\n");
-            self.c.details_box.appendln(&joined);
             self.c.copy_clipboard_button.set_enabled(true);
             self.c.close_button.set_enabled(true);
         } else {
@@ -76,7 +73,11 @@ impl BackupDialog {
             self.c.copy_clipboard_button.set_enabled(true);
             self.c.close_button.set_enabled(true);
         }
-        self.progress_pending.clear();
+        if self.progress_pending.len() > 0 {
+            let joined = self.progress_pending.join("\r\n");
+            self.c.details_box.appendln(&joined);
+            self.progress_pending.clear();
+        }
     }
 
     pub(super) fn copy_to_clipboard(&mut self, _: nwg::EventData) {
@@ -128,17 +129,17 @@ impl BackupDialog {
             match line {
                 Ok(ln) => progress.send_value(ln),
                 Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!(
-                    "Process output read failure: {}", e)))
+                    "pg_dump process failure: {}", e)))
             }
         };
         match reader.try_wait() {
             Ok(opt) => match opt {
                 Some(_) => { },
                 None => return Err(io::Error::new(io::ErrorKind::Other, format!(
-                        "Process failure")))
+                        "pg_dump process failure")))
             },
             Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!(
-                "Process failure: {}", e)))
+                "pg_dump process failure: {}", e)))
         }
 
         Ok(())
@@ -224,8 +225,8 @@ impl BackupDialog {
                     "Error zipping destination directory, path: {}, error: {}", &dest_dir, e));
             }
         };
-        progress.send_value("Backup complete");
 
+        progress.send_value("Backup complete");
         BackupResult::success()
     }
 }

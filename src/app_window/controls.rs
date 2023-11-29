@@ -213,8 +213,6 @@ impl ui::Controls for AppWindowControls {
             .build(&mut self.restore_src_file_label)?;
         nwg::TextInput::builder()
             .font(Some(&self.font_normal))
-            // todo: removeme
-            .text("C:\\tmp\\import3\\dest2\\test1_20231126_135702.zip")
             .parent(&self.restore_tab)
             .build(&mut self.restore_src_file_input)?;
         nwg::Button::builder()
@@ -248,8 +246,6 @@ impl ui::Controls for AppWindowControls {
             .build(&mut self.restore_dbname_label)?;
         nwg::TextInput::builder()
             .font(Some(&self.font_normal))
-            // todo: removeme
-            .text("test2")
             .parent(&self.restore_tab)
             .build(&mut self.restore_dbname_input)?;
 

@@ -18,6 +18,7 @@ use super::*;
 
 #[derive(Default, Clone)]
 pub struct ConnectDialogResult {
+    pub cancelled: bool,
     pub pg_conn_config: PgConnConfig,
     pub bbf_db: String,
     pub dbnames: Vec<String>,
@@ -26,6 +27,7 @@ pub struct ConnectDialogResult {
 impl ConnectDialogResult {
     pub fn new(pg_conn_config: PgConnConfig, dbnames: Vec<String>, bbf_db: String) -> Self {
         Self {
+            cancelled: false,
             pg_conn_config,
             dbnames,
             bbf_db
@@ -33,6 +35,9 @@ impl ConnectDialogResult {
     }
 
     pub fn cancelled() -> Self {
-        Default::default()
+        Self {
+            cancelled: true,
+            ..Default::default()
+        }
     }
 }

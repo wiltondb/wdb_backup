@@ -53,7 +53,7 @@ impl ui::Layout<RestoreDialogControls> for RestoreDialogLayout {
 
             .child(&c.progress_bar)
             .child_size(ui::size_builder()
-                .height_pt(30)
+                .height_pt(20)
                 .width_auto()
                 .build())
             .child_align_self(ui::AlignSelf::Stretch)

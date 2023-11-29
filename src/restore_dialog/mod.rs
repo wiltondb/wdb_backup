@@ -23,7 +23,6 @@ mod nui;
 mod result;
 mod toc;
 
-use std::process;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;

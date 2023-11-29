@@ -81,7 +81,7 @@ impl ui::Events<AppWindowControls> for AppWindowEvents {
         ui::event_builder()
             .control(&c.restore_src_file_button)
             .event(nwg::Event::OnButtonClick)
-            .handler(AppWindow::choose_src_dir)
+            .handler(AppWindow::choose_src_file)
             .build(&mut self.events)?;
 
         ui::event_builder()

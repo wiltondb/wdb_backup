@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+use std::path::Path;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use std::process::Stdio;
@@ -70,7 +71,6 @@ impl AppWindow {
         self.c.window.set_enabled(true);
         self.c.about_notice.receive();
         let _ = self.about_dialog_join_handle.join();
-        //self.c.filter_input.set_enabled(true);
     }
 
     pub(super) fn open_connect_dialog(&mut self, _: nwg::EventData) {
@@ -83,18 +83,20 @@ impl AppWindow {
         self.c.window.set_enabled(true);
         self.c.connect_notice.receive();
         let res = self.connect_dialog_join_handle.join();
-        let mut dbnames: Vec<String> = res.dbnames.iter().filter(|name| {
-            !vec!("msdb", "tempdb").contains(&name.as_str())
-        }).map(|name| name.clone()).collect();
-        dbnames.sort();
-        self.c.backup_dbname_combo.set_collection(dbnames);
-        self.c.backup_dbname_combo.set_selection(Some(1));
-        self.on_dbname_changed(nwg::EventData::NoData);
-        self.c.restore_bbf_db_input.set_text(&res.bbf_db);
-        self.pg_conn_config = res.pg_conn_config;
-        let sbar_label = format!(
-            "{}:{}", &self.pg_conn_config.hostname, &self.pg_conn_config.port);
-        self.set_status_bar_dbconn_label(&sbar_label);
+        if !res.cancelled {
+            let mut dbnames: Vec<String> = res.dbnames.iter().filter(|name| {
+                !vec!("master", "msdb", "tempdb").contains(&name.as_str())
+            }).map(|name| name.clone()).collect();
+            dbnames.sort();
+            self.c.backup_dbname_combo.set_collection(dbnames);
+            self.c.backup_dbname_combo.set_selection(Some(0));
+            self.on_dbname_changed(nwg::EventData::NoData);
+            self.c.restore_bbf_db_input.set_text(&res.bbf_db);
+            self.pg_conn_config = res.pg_conn_config;
+            let sbar_label = format!(
+                "{}:{}", &self.pg_conn_config.hostname, &self.pg_conn_config.port);
+            self.set_status_bar_dbconn_label(&sbar_label);
+        }
     }
 
     pub(super) fn open_backup_dialog(&mut self, _: nwg::EventData) {
@@ -162,33 +164,6 @@ impl AppWindow {
         let zipfile = self.c.restore_src_file_input.text();
         let dbname = self.c.restore_dbname_input.text();
         let bbf_db = self.c.restore_bbf_db_input.text();
-        /*
-        let src_dir = self.c.restore_src_dir_input.text();
-        // todo: bin path
-        let bin_dir = "C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin";
-        let pg_restore = format!("{}\\pg_restore.exe", bin_dir);
-        // todo:
-        let cmd = PgCommand::new(pg_restore)
-            .arg("-v")
-            .arg("-h").arg(&pcc.hostname)
-            .arg("-p").arg(&pcc.port.to_string())
-            .arg("-U").arg(&pcc.username)
-            .arg("-d").arg("wilton")
-            .arg("-Fd")
-            .arg(&src_dir)
-            .env_var("PGPASSWORD", &pcc.password)
-            .conn_config(pcc.clone())
-            .sql(&format!("CREATE ROLE {}_db_owner", dbname))
-            .sql(&format!("ALTER ROLE {}_db_owner WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", dbname))
-            .sql(&format!("CREATE ROLE {}_dbo", dbname))
-            .sql(&format!("ALTER ROLE {}_dbo WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", dbname))
-            .sql(&format!("CREATE ROLE {}_guest", dbname))
-            .sql(&format!("ALTER ROLE {}_guest WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", dbname))
-            .sql(&format!("GRANT {}_db_owner TO {}_dbo GRANTED BY sysadmin", dbname, dbname))
-            .sql(&format!("GRANT {}_dbo TO sysadmin GRANTED BY sysadmin", dbname))
-            .sql(&format!("GRANT {}_guest TO sysadmin GRANTED BY sysadmin", dbname))
-            .sql(&format!("GRANT {}_guest TO {}_db_owner GRANTED BY sysadmin", dbname, dbname));
-         */
         self.c.window.set_enabled(false);
         let args = RestoreDialogArgs::new(
             &self.c.restore_dialog_notice, &pcc,
@@ -221,31 +196,36 @@ impl AppWindow {
     pub(super) fn choose_dest_dir(&mut self, _: nwg::EventData) {
         if let Ok(d) = std::env::current_dir() {
             if let Some(d) = d.to_str() {
-                self.c.backup_dest_dir_chooser.set_default_folder(d).expect("Failed to set default folder.");
+                let _ = self.c.backup_dest_dir_chooser.set_default_folder(d);
             }
         }
 
         if self.c.backup_dest_dir_chooser.run(Some(&self.c.window)) {
             self.c.backup_dest_dir_input.set_text("");
             if let Ok(directory) = self.c.backup_dest_dir_chooser.get_selected_item() {
-                let dir = directory.into_string().unwrap();
+                let dir = directory.to_string_lossy().to_string();
                 self.c.backup_dest_dir_input.set_text(&dir);
             }
         }
     }
 
-    pub(super) fn choose_src_dir(&mut self, _: nwg::EventData) {
+    pub(super) fn choose_src_file(&mut self, _: nwg::EventData) {
         if let Ok(d) = std::env::current_dir() {
             if let Some(d) = d.to_str() {
-                self.c.restore_src_file_chooser.set_default_folder(d).expect("Failed to set default folder.");
+                let _ = self.c.restore_src_file_chooser.set_default_folder(d);
             }
         }
 
         if self.c.restore_src_file_chooser.run(Some(&self.c.window)) {
             self.c.restore_src_file_input.set_text("");
             if let Ok(file) = self.c.restore_src_file_chooser.get_selected_item() {
-                let f = file.into_string().unwrap();
-                self.c.restore_src_file_input.set_text(&f);
+                let fpath_st = file.to_string_lossy().to_string();
+                self.c.restore_src_file_input.set_text(&fpath_st);
+                if let Some(filename) = Path::new(&file).file_name() {
+                    let name_st = filename.to_string_lossy().to_string();
+                    let parts: Vec<&str> = name_st.split('_').collect();
+                    self.c.restore_dbname_input.set_text(parts[0]);
+                }
             }
         }
     }

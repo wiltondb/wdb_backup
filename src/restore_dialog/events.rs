@@ -44,10 +44,16 @@ impl ui::Events<RestoreDialogControls> for RestoreDialogEvents {
             .event(nwg::Event::OnButtonClick)
             .handler(RestoreDialog::close)
             .build(&mut self.events)?;
+
         ui::event_builder()
-            .control(&c.command_notice.notice)
+            .control(&c.progress_notice.notice)
             .event(nwg::Event::OnNotice)
-            .handler(RestoreDialog::on_command_complete)
+            .handler(RestoreDialog::on_progress)
+            .build(&mut self.events)?;
+        ui::event_builder()
+            .control(&c.complete_notice.notice)
+            .event(nwg::Event::OnNotice)
+            .handler(RestoreDialog::on_complete)
             .build(&mut self.events)?;
 
         Ok(())

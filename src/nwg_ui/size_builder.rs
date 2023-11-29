@@ -51,7 +51,7 @@ impl SizeBuilder {
     }
 
     pub fn width_button_xwide(mut self) -> Self {
-        self.width = Dimension::Points(130 as f32);
+        self.width = Dimension::Points(120 as f32);
         self
     }
     pub fn width_input_default(mut self) -> Self {

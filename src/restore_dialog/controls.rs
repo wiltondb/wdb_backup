@@ -31,7 +31,8 @@ pub(super) struct RestoreDialogControls {
     pub(super) copy_clipboard_button: nwg::Button,
     pub(super) close_button: nwg::Button,
 
-    pub(super) command_notice: ui::SyncNotice,
+    pub(super) progress_notice: ui::SyncNoticeValue<String>,
+    pub(super) complete_notice: ui::SyncNotice,
 }
 
 impl ui::Controls for RestoreDialogControls {
@@ -49,10 +50,10 @@ impl ui::Controls for RestoreDialogControls {
             .build(&mut self.icon)?;
 
         nwg::Window::builder()
-            .size((320, 200))
+            .size((480, 480))
             .icon(Some(&self.icon))
             .center(true)
-            .title("Running backup/restore")
+            .title("Restore")
             .build(&mut self.window)?;
 
         nwg::ProgressBar::builder()
@@ -64,7 +65,7 @@ impl ui::Controls for RestoreDialogControls {
             .build(&mut self.progress_bar)?;
 
         nwg::Label::builder()
-            .text("Running ...")
+            .text("Running restore ...")
             .flags(nwg::LabelFlags::VISIBLE | nwg::LabelFlags::ELIPSIS)
             .font(Some(&self.font_normal))
             .v_align(nwg::VTextAlign::Top)
@@ -72,7 +73,7 @@ impl ui::Controls for RestoreDialogControls {
             .build(&mut self.label)?;
 
         nwg::TextBox::builder()
-            .text("Details pending ...")
+            .text("")
             .font(Some(&self.font_normal))
             .readonly(true)
             .parent(&self.window)
@@ -94,7 +95,10 @@ impl ui::Controls for RestoreDialogControls {
 
         ui::notice_builder()
             .parent(&self.window)
-            .build(&mut self.command_notice)?;
+            .build(&mut self.progress_notice)?;
+        ui::notice_builder()
+            .parent(&self.window)
+            .build(&mut self.complete_notice)?;
 
         self.layout.build(&self)?;
 
