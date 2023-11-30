@@ -33,6 +33,7 @@ pub struct AppWindow {
 
     about_dialog_join_handle: ui::PopupJoinHandle<()>,
     connect_dialog_join_handle: ui::PopupJoinHandle<ConnectDialogResult>,
+    load_join_handle: ui::PopupJoinHandle<LoadDbnamesDialogResult>,
     backup_dialog_join_handle: ui::PopupJoinHandle<BackupDialogResult>,
     restore_dialog_join_handle: ui::PopupJoinHandle<RestoreDialogResult>,
 }
@@ -84,18 +85,27 @@ impl AppWindow {
         self.c.connect_notice.receive();
         let res = self.connect_dialog_join_handle.join();
         if !res.cancelled {
-            let mut dbnames: Vec<String> = res.dbnames.iter().filter(|name| {
-                !vec!("master", "msdb", "tempdb").contains(&name.as_str())
-            }).map(|name| name.clone()).collect();
-            dbnames.sort();
-            self.c.backup_dbname_combo.set_collection(dbnames);
-            self.c.backup_dbname_combo.set_selection(Some(0));
-            self.on_dbname_changed(nwg::EventData::NoData);
-            self.c.restore_bbf_db_input.set_text(&res.bbf_db);
+            self.set_dbnames(&res.dbnames, &res.bbf_db);
             self.pg_conn_config = res.pg_conn_config;
             let sbar_label = format!(
                 "{}:{}", &self.pg_conn_config.hostname, &self.pg_conn_config.port);
             self.set_status_bar_dbconn_label(&sbar_label);
+        }
+    }
+
+    pub(super) fn open_load_dialog(&mut self, _: nwg::EventData) {
+        self.c.window.set_enabled(false);
+        let pcc = self.pg_conn_config.clone();
+        let args = LoadDbnamesDialogArgs::new(&self.c.load_notice, pcc);
+        self.load_join_handle = LoadDbnamesDialog::popup(args);
+    }
+
+    pub(super) fn await_load_dialog(&mut self, _: nwg::EventData) {
+        self.c.window.set_enabled(true);
+        self.c.load_notice.receive();
+        let res = self.load_join_handle.join();
+        if res.success {
+            self.set_dbnames(&res.dbnames, &res.bbf_db);
         }
     }
 
@@ -106,47 +116,6 @@ impl AppWindow {
         };
         let dir = self.c.backup_dest_dir_input.text();
         let filename = self.c.backup_filename_input.text();
-        /*
-        let mut filename = self.c.backup_filename_input.text();
-        let mut ext = Path::new(&filename).extension().unwrap_or(OsStr::new(""))
-            .to_str().unwrap_or("").to_string();
-        if ext.is_empty() {
-            ext = ".zip".to_string();
-            filename.push_str(&ext);
-        }
-        let dirname = match Path::new(&filename).extension() {
-            Some(ext) => filename.chars().take(filename.len() - (ext.len() + 1)).collect(),
-            None => format!("{}_dir", filename) // cannot happen
-        };
-        let parent_dir_slashes = parent_dir.replace("\\", "/");
-        let dest_dir = format!("{}/{}", parent_dir_slashes, dirname);
-        // todo: bin path
-        //let bin_dir = "C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin";
-        let bin_dir = "C:\\projects\\postgres\\dist\\bin";
-        //let pg_dumpall = format!("{}\\pg_dumpall.exe", bin_dir);
-        let pg_dump = format!("{}\\pg_dump.exe", bin_dir);
-        // -h 127.0.0.1 -p 5432 -U wilton --bbf-database-name tmp1 -Fd -Z6 -f tmp1
-        let pcc = &self.pg_conn_config;
-        let dbname = match self.c.backup_dbname_combo.selection_string() {
-            Some(name) => name,
-            None => "todo".to_owned()
-        };
-        let cmd = PgCommand::new(pg_dump)
-            .arg("-v")
-            .arg("-h").arg(&pcc.hostname)
-            .arg("-p").arg(&pcc.port.to_string())
-            .arg("-U").arg(&pcc.username)
-            .arg("--bbf-database-name").arg(&dbname)
-            .arg("-Fd")
-            .arg("-Z6")
-            .arg("-f").arg(&dest_dir)
-            .env_var("PGPASSWORD", &pcc.password)
-            .ensure_dest_dir(&dest_dir)
-            .zip_result_dir(&dest_dir, &filename)
-            ;
-
-         */
-
         self.c.window.set_enabled(false);
         let args = BackupDialogArgs::new(
             &self.c.backup_dialog_notice, &self.pg_conn_config,  &dbname, &dir, &filename);
@@ -241,6 +210,17 @@ impl AppWindow {
             let filename = format!("{}_{}.zip", name, date_st);
             self.c.backup_filename_input.set_text(&filename);
         }
+    }
+
+    fn set_dbnames(&mut self, dbnames_all: &Vec<String>, bbf_db: &str) {
+        let mut dbnames: Vec<String> = dbnames_all.iter().filter(|name| {
+            !vec!("master", "msdb", "tempdb").contains(&name.as_str())
+        }).map(|name| name.clone()).collect();
+        dbnames.sort();
+        self.c.backup_dbname_combo.set_collection(dbnames);
+        self.c.backup_dbname_combo.set_selection(Some(0));
+        self.on_dbname_changed(nwg::EventData::NoData);
+        self.c.restore_bbf_db_input.set_text(bbf_db);
     }
 
     fn set_status_bar_dbconn_label(&self, text: &str) {

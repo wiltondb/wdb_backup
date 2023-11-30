@@ -377,6 +377,13 @@ fn replace_dbname(te: &TocEntry, opt: &Option<Vec<u8>>, orig_dbname: &str, dbnam
         .replace(&needle_dbo, &replacement_dbo)
         .replace(&needle_db_owner, &replacement_db_owner)
         .replace(&needle_guest, &replacement_guest);
+    // todo: remomeme
+    println!("=========================================");
+    println!("{}", binopt_to_string(opt));
+    println!("-----------------------------------------");
+    println!("{}", res);
+    println!("=========================================");
+    // end: removeme
     Some(res.into_bytes())
 }
 

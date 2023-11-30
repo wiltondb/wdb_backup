@@ -173,7 +173,6 @@ impl RestoreDialog {
         // todo
         //let pg_restore_exe = bin_dir.as_path().join("pg_restore.exe");
         let pg_restore_exe = Path::new("C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin\\pg_restore.exe").to_path_buf();
-        env::set_var("PGPASSWORD", &pcc.password);
         let cmd = duct::cmd!(
             pg_restore_exe,
             "-v",
@@ -184,11 +183,13 @@ impl RestoreDialog {
             "-F", "d",
             "-j", "1",
             dir
-        ).before_spawn(|pcmd| {
-            // create no window
-            let _ = pcmd.creation_flags(0x08000000);
-            Ok(())
-        });
+        )
+            .env("PGPASSWORD", &pcc.password)
+            .before_spawn(|pcmd| {
+                // create no window
+                let _ = pcmd.creation_flags(0x08000000);
+                Ok(())
+            });
         let reader = cmd.stderr_to_stdout().reader()?;
         for line in BufReader::new(&reader).lines() {
             match line {
@@ -208,41 +209,6 @@ impl RestoreDialog {
         }
 
         Ok(())
-        /*
-        let create_no_window: u32 = 0x08000000;
-        match process::Command::new(pg_restore_exe.as_os_str())
-            .arg("-v")
-            .arg("-h").arg(&pcc.hostname)
-            .arg("-p").arg(&pcc.port.to_string())
-            .arg("-U").arg(&pcc.username)
-            .arg("-d").arg(bbf_db)
-            .arg("-F").arg("d")
-            .arg("-j").arg("1")
-            .arg(dir)
-            .creation_flags(create_no_window)
-            .output() {
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout[..]).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr[..]).to_string();
-                if output.status.success() {
-                    if !stdout.is_empty() || ! stderr.is_empty() {
-                        Ok(format!("{}\n{}", stdout, stderr))
-                    } else {
-                        Ok(format!("{}{}", stdout, stderr))
-                    }
-                } else {
-                    let code = match output.status.code() {
-                        Some(code) => code,
-                        None => -1
-                    };
-                    Err(io::Error::new(io::ErrorKind::Other, format!(
-                        "Restore error, status code: {}\r\n\r\nstderr: {}\r\nstdout: {}", code, stderr, stdout)))
-                }
-            },
-            Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!(
-                "Restore spawn error: {}", e)))
-        }
-         */
     }
 
     fn run_restore(progress: &ui::SyncNoticeValueSender<String>, pcc: &PgConnConfig, ra: &PgRestoreArgs) -> RestoreResult {

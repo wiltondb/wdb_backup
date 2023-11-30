@@ -107,7 +107,6 @@ impl BackupDialog {
         // todo
         //let pg_dump_exe = bin_dir.as_path().join("pg_dump.exe");
         let pg_dump_exe = Path::new("C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin\\pg_dump.exe").to_path_buf();
-        env::set_var("PGPASSWORD", &pcc.password);
         let cmd = duct::cmd!(
             pg_dump_exe,
             "-v",
@@ -119,11 +118,13 @@ impl BackupDialog {
             "-Z", "6",
             "-j", "4",
             "-f", &dest_dir
-        ).before_spawn(|pcmd| {
-            // create no window
-            let _ = pcmd.creation_flags(0x08000000);
-            Ok(())
-        });
+        )
+            .env("PGPASSWORD", &pcc.password)
+            .before_spawn(|pcmd| {
+                // create no window
+                let _ = pcmd.creation_flags(0x08000000);
+                Ok(())
+            });
         let reader = cmd.stderr_to_stdout().reader()?;
         for line in BufReader::new(&reader).lines() {
             match line {

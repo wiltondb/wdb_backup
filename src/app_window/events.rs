@@ -62,6 +62,11 @@ impl ui::Events<AppWindowControls> for AppWindowEvents {
             .handler(AppWindow::on_dbname_changed)
             .build(&mut self.events)?;
         ui::event_builder()
+            .control(&c.backup_dbname_reload_button)
+            .event(nwg::Event::OnButtonClick)
+            .handler(AppWindow::open_load_dialog)
+            .build(&mut self.events)?;
+        ui::event_builder()
             .control(&c.backup_dest_dir_button)
             .event(nwg::Event::OnButtonClick)
             .handler(AppWindow::choose_dest_dir)
@@ -104,6 +109,11 @@ impl ui::Events<AppWindowControls> for AppWindowEvents {
             .control(&c.connect_notice.notice)
             .event(nwg::Event::OnNotice)
             .handler(AppWindow::await_connect_dialog)
+            .build(&mut self.events)?;
+        ui::event_builder()
+            .control(&c.load_notice.notice)
+            .event(nwg::Event::OnNotice)
+            .handler(AppWindow::await_load_dialog)
             .build(&mut self.events)?;
         ui::event_builder()
             .control(&c.backup_dialog_notice.notice)

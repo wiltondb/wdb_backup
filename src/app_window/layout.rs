@@ -54,6 +54,14 @@ impl ui::Layout<AppWindowControls> for AppWindowLayout {
                 .start_pt(5)
                 .build())
             .child_flex_grow(1.0)
+            .child(&c.backup_dbname_reload_button)
+            .child_size(ui::size_builder()
+                .width_button_normal()
+                .height_button()
+                .build())
+            .child_margin(ui::margin_builder()
+                .start_pt(5)
+                .build())
             .build_partial(&self.backup_dbname_layout)?;
 
         nwg::FlexboxLayout::builder()

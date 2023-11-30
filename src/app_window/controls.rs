@@ -41,6 +41,7 @@ pub(super) struct AppWindowControls {
 
     pub(super) backup_dbname_label: nwg::Label,
     pub(super) backup_dbname_combo: nwg::ComboBox<String>,
+    pub(super) backup_dbname_reload_button: nwg::Button,
     pub(super) backup_dest_dir_label: nwg::Label,
     pub(super) backup_dest_dir_input: nwg::TextInput,
     pub(super) backup_dest_dir_button: nwg::Button,
@@ -65,6 +66,7 @@ pub(super) struct AppWindowControls {
 
     pub(super) about_notice: ui::SyncNotice,
     pub(super) connect_notice: ui::SyncNotice,
+    pub(super) load_notice: ui::SyncNotice,
     pub(super) backup_dialog_notice: ui::SyncNotice,
     pub(super) restore_dialog_notice: ui::SyncNotice,
 }
@@ -154,6 +156,11 @@ impl ui::Controls for AppWindowControls {
             .font(Some(&self.font_normal))
             .parent(&self.backup_tab)
             .build(&mut self.backup_dbname_combo)?;
+        nwg::Button::builder()
+            .text("Reload")
+            .font(Some(&self.font_normal))
+            .parent(&self.backup_tab)
+            .build(&mut self.backup_dbname_reload_button)?;
 
         nwg::Label::builder()
             .text("Destination dir.:")
@@ -275,6 +282,9 @@ impl ui::Controls for AppWindowControls {
         ui::notice_builder()
             .parent(&self.window)
             .build(&mut self.connect_notice)?;
+        ui::notice_builder()
+            .parent(&self.window)
+            .build(&mut self.load_notice)?;
         ui::notice_builder()
             .parent(&self.window)
             .build(&mut self.backup_dialog_notice)?;
