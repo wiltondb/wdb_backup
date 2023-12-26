@@ -22,21 +22,22 @@ pub struct ConnectCheckDialog {
     pub(super) c: ConnectCheckDialogControls,
 
     args: ConnectCheckDialogArgs,
-    check_join_handle: ui::PopupJoinHandle<ConnectCheckResult>,
+    check_join_handle: ui::PopupJoinHandle<ConnectCheckDialogResult>,
+    result: ConnectCheckDialogResult
 }
 
 impl ConnectCheckDialog {
     pub(super) fn on_connection_check_complete(&mut self, _: nwg::EventData) {
         self.c.check_notice.receive();
-        let res = self.check_join_handle.join();
-        self.stop_progress_bar(res.success);
-        let label = if res.success {
+        self.result = self.check_join_handle.join();
+        self.stop_progress_bar(self.result.success);
+        let label = if self.result.success {
             "Connection successful"
         } else {
             "Connection failed"
         };
         self.c.label.set_text(label);
-        self.c.details_box.set_text(&res.message);
+        self.c.details_box.set_text(&self.result.message);
         self.c.copy_clipboard_button.set_enabled(true);
         self.c.close_button.set_enabled(true);
     }
@@ -85,8 +86,8 @@ impl ui::PopupDialog<ConnectCheckDialogArgs, ConnectCheckDialogResult> for Conne
         let join_handle = thread::spawn(move || {
             let start = Instant::now();
             let res = match ConnectCheckDialog::check_postgres_conn(&pgconf) {
-                Ok(version) => ConnectCheckResult::success(version),
-                Err(e) => ConnectCheckResult::failure(format!("{}", e))
+                Ok(version) => ConnectCheckDialogResult::success(version),
+                Err(e) => ConnectCheckDialogResult::failure(format!("{}", e))
             };
             let remaining = 1000 - start.elapsed().as_millis() as i64;
             if remaining > 0 {
@@ -99,8 +100,7 @@ impl ui::PopupDialog<ConnectCheckDialogArgs, ConnectCheckDialogResult> for Conne
     }
 
     fn result(&mut self) -> ConnectCheckDialogResult {
-        // todo
-        Default::default()
+        self.result.clone()
     }
 
     fn close(&mut self, _: nwg::EventData) {

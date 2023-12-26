@@ -23,6 +23,8 @@ use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::time;
 
+use pgdump_toc_rewrite;
+
 use super::*;
 use crate::restore_dialog::args::PgRestoreArgs;
 use crate::common::PgAccessError;
@@ -136,33 +138,51 @@ impl RestoreDialog {
         Ok(())
     }
 
-    fn create_role_if_not_exist(client: &mut postgres::Client, dbname: &str, role: &str) -> Result<(), PgAccessError> {
+    fn create_role_if_not_exist(client: &mut postgres::Client, dbname: &str, role: &str) -> Result<Option<String>, PgAccessError> {
         let rolname = format!("{}_{}", dbname, role);
         let list = client.query("select (count(1) > 0) as role_exist from pg_catalog.pg_roles where rolname = $1", &[&rolname])?;
         let exists: bool = list[0].get(0);
         if !exists {
             client.execute(&format!("CREATE ROLE {}", rolname), &[])?;
             client.execute(&format!("ALTER ROLE {} WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", rolname), &[])?;
+            Ok(Some(rolname))
+        } else {
+            Ok(None)
         }
-        Ok(())
     }
 
-    fn restore_global_data(pcc: &PgConnConfig, dbname: &str) -> Result<(), PgAccessError> {
+    fn restore_global_data(pcc: &PgConnConfig, dbname: &str) -> Result<Vec<String>, PgAccessError> {
         let mut client = pcc.open_connection()?;
-        Self::create_role_if_not_exist(&mut client, dbname, "db_owner")?;
-        Self::create_role_if_not_exist(&mut client, dbname, "dbo")?;
-        Self::create_role_if_not_exist(&mut client, dbname, "guest")?;
+        let mut res = Vec::new();
+        for role in vec!(
+            "db_owner",
+            "dbo",
+            "guest"
+        ) {
+            if let Some(rolename) = Self::create_role_if_not_exist(&mut client, dbname, role)? {
+                res.push(rolename);
+            }
+        }
         client.execute(&format!("GRANT {}_db_owner TO {}_dbo GRANTED BY sysadmin", dbname, dbname), &[])?;
         client.execute(&format!("GRANT {}_dbo TO sysadmin GRANTED BY sysadmin", dbname), &[])?;
         client.execute(&format!("GRANT {}_guest TO sysadmin GRANTED BY sysadmin", dbname), &[])?;
         client.execute(&format!("GRANT {}_guest TO {}_db_owner GRANTED BY sysadmin", dbname, dbname), &[])?;
+        client.close()?;
+        Ok(res)
+    }
+
+    fn drop_created_roles(pcc: &PgConnConfig, roles: &Vec<String>) -> Result<(), PgAccessError> {
+        let mut client = pcc.open_connection()?;
+        for rolname in roles {
+            client.execute(&format!("DROP ROLE {}", rolname), &[])?;
+        }
         client.close()?;
         Ok(())
     }
 
     fn run_pg_restore(progress: &ui::SyncNoticeValueSender<String>, pcc: &PgConnConfig, dir: &str, bbf_db: &str) -> Result<(), io::Error> {
         let cur_exe = env::current_exe()?;
-        let _bin_dir = match cur_exe.parent() {
+        let bin_dir = match cur_exe.parent() {
             Some(path) => path,
             None => { // cannot happen
                 let exe_st = cur_exe.to_str().unwrap_or("");
@@ -170,9 +190,7 @@ impl RestoreDialog {
                     "Parent dir failure, exe path: {}", exe_st)))
             }
         };
-        // todo
-        //let pg_restore_exe = bin_dir.as_path().join("pg_restore.exe");
-        let pg_restore_exe = Path::new("C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin\\pg_restore.exe").to_path_buf();
+        let pg_restore_exe = bin_dir.join("pg_restore.exe");
         let cmd = duct::cmd!(
             pg_restore_exe,
             "-v",
@@ -182,6 +200,7 @@ impl RestoreDialog {
             "-d", bbf_db,
             "-F", "d",
             "-j", "1",
+            "--single-transaction",
             dir
         )
             .env("PGPASSWORD", &pcc.password)
@@ -228,26 +247,38 @@ impl RestoreDialog {
 
         // rewrite
         progress.send_value("Updating DB name ...");
-        if let Err(e) = rewrite_toc(&dir, &ra.dest_db_name) {
+        let toc_path = Path::new(&dir).join("toc.dat");
+        if let Err(e) = pgdump_toc_rewrite::rewrite_toc(&toc_path, &ra.dest_db_name) {
             return RestoreResult::failure(format!("{}", e))
         }
 
         // global data
         progress.send_value("Restoring roles ...");
-        if let Err(e) = Self::restore_global_data(pcc, &ra.dest_db_name) {
-            return RestoreResult::failure(format!("{}", e))
-        }
+        let roles = match Self::restore_global_data(pcc, &ra.dest_db_name) {
+            Ok(roles) => roles,
+            Err(e) => return RestoreResult::failure(format!("{}", e))
+        };
 
         // run restore
         progress.send_value("Running pg_restore ...");
         if let Err(e) = Self::run_pg_restore(progress, pcc, &dir, &ra.bbf_db_name) {
+            if roles.len() > 0 {
+                progress.send_value(format!(
+                    "Error: restore failed, cleaning up global roles we created: {}", roles.join(", ")));
+                match Self::drop_created_roles(pcc, &roles) {
+                    Ok(_) => progress.send_value("Global roles cleanup complete"),
+                    Err(e) => progress.send_value(format!(
+                        "Error cleaning up global roles: {}", e))
+                }
+            }
             return RestoreResult::failure(format!("{}", e))
         };
 
         // clean up
         progress.send_value("Cleaning up temp directory ...");
         if let Err(e) = fs::remove_dir_all(Path::new(&dir)) {
-            return RestoreResult::failure(format!("{}", e))
+            progress.send_value(format!(
+                "Warning: error removing tem directory: {}, message: {}", dir, e));
         };
 
         progress.send_value("Restore complete");

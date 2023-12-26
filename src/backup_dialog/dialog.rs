@@ -96,7 +96,7 @@ impl BackupDialog {
 
     fn run_command(progress: &ui::SyncNoticeValueSender<String>, pcc: &PgConnConfig, dbname: &str, dest_dir: &str) -> Result<(), io::Error> {
         let cur_exe = env::current_exe()?;
-        let _bin_dir = match cur_exe.parent() {
+        let bin_dir = match cur_exe.parent() {
             Some(path) => path,
             None => { // cannot happen
                 let exe_st = cur_exe.to_str().unwrap_or("");
@@ -104,9 +104,7 @@ impl BackupDialog {
                     "Parent dir failure, exe path: {}", exe_st)))
             }
         };
-        // todo
-        //let pg_dump_exe = bin_dir.as_path().join("pg_dump.exe");
-        let pg_dump_exe = Path::new("C:\\Program Files\\WiltonDB Software\\wiltondb3.3\\bin\\pg_dump.exe").to_path_buf();
+        let pg_dump_exe = bin_dir.join("pg_dump.exe");
         let cmd = duct::cmd!(
             pg_dump_exe,
             "-v",

@@ -21,7 +21,6 @@ mod events;
 mod layout;
 mod nui;
 mod result;
-mod toc;
 
 use std::thread;
 use std::time::Duration;
@@ -47,4 +46,3 @@ use events::RestoreDialogEvents;
 use layout::RestoreDialogLayout;
 pub use result::RestoreDialogResult;
 use result::RestoreResult;
-pub(self) use toc::rewrite_toc;

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#[derive(Default)]
-pub(super) struct ConnectCheckResult {
-    pub(super) success: bool,
-    pub(super) message: String,
+#[derive(Default, Clone)]
+pub struct ConnectCheckDialogResult {
+    pub success: bool,
+    pub message: String,
 }
 
-impl ConnectCheckResult {
+impl ConnectCheckDialogResult {
     pub(super) fn success(message: String) -> Self {
         Self {
             success: true,
@@ -32,18 +32,6 @@ impl ConnectCheckResult {
         Self {
             success: false,
             message
-        }
-    }
-}
-
-pub struct ConnectCheckDialogResult {
-    pub value: Result<String, postgres::Error>
-}
-
-impl Default for ConnectCheckDialogResult {
-    fn default() -> Self {
-        Self {
-            value: Ok(String::new())
         }
     }
 }

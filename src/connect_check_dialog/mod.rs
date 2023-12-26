@@ -45,4 +45,3 @@ pub use dialog::ConnectCheckDialog;
 use events::ConnectCheckDialogEvents;
 use layout::ConnectCheckDialogLayout;
 pub use result::ConnectCheckDialogResult;
-use result::ConnectCheckResult;

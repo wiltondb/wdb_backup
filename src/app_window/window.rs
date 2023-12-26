@@ -19,8 +19,6 @@ use std::os::windows::process::CommandExt;
 use std::process::Command;
 use std::process::Stdio;
 
-use chrono;
-
 use super::*;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -47,9 +45,7 @@ impl AppWindow {
     pub(super) fn init(&mut self) {
         self.pg_conn_config.hostname = String::from("localhost");
         self.pg_conn_config.port = 5432;
-        // todo: removeme
         self.pg_conn_config.username = String::from("wilton");
-        self.pg_conn_config.password = String::from("wilton");
         self.pg_conn_config.enable_tls = true;
         self.pg_conn_config.accept_invalid_tls = true;
 
@@ -205,9 +201,7 @@ impl AppWindow {
 
     pub(super) fn on_dbname_changed(&mut self, _: nwg::EventData) {
         if let Some(name) = &self.c.backup_dbname_combo.selection_string() {
-            let date = chrono::offset::Local::now();
-            let date_st = date.format("%Y%m%d_%H%M%S");
-            let filename = format!("{}_{}.zip", name, date_st);
+            let filename = format!("{}.zip", name);
             self.c.backup_filename_input.set_text(&filename);
         }
     }
