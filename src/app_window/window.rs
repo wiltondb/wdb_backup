@@ -112,10 +112,19 @@ impl AppWindow {
         };
         let dir = self.c.backup_dest_dir_input.text();
         let filename = self.c.backup_filename_input.text();
-        self.c.window.set_enabled(false);
-        let args = BackupDialogArgs::new(
-            &self.c.backup_dialog_notice, &self.pg_conn_config,  &dbname, &dir, &filename);
-        self.backup_dialog_join_handle = BackupDialog::popup(args);
+        let dest_path = Path::new(&dir).join(&filename);
+        let mut go_on = true;
+        if dest_path.exists() {
+            let dest_path_st = dest_path.to_string_lossy().to_string();
+            go_on = ui::message_box_warning_yn(&format!(
+                "Destination file already exists:\r\n{}\r\n\r\nWould you like to overwrite it?", dest_path_st));
+        }
+        if go_on {
+            self.c.window.set_enabled(false);
+            let args = BackupDialogArgs::new(
+                &self.c.backup_dialog_notice, &self.pg_conn_config,  &dbname, &dir, &filename);
+            self.backup_dialog_join_handle = BackupDialog::popup(args);
+        }
     }
 
     pub(super) fn await_backup_dialog(&mut self, _: nwg::EventData) {

@@ -37,6 +37,7 @@ pub use events::Events;
 pub use layout::Layout;
 pub use message_box::message_box;
 pub use message_box::message_box_debug;
+pub use message_box::message_box_warning_yn;
 pub use popup_args::PopupArgs;
 pub use popup_dialog::PopupDialog;
 pub use popup_join_handle::PopupJoinHandle;

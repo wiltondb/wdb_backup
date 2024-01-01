@@ -18,8 +18,7 @@ use std::ptr::null_mut as NULL;
 
 use winapi::um::winuser;
 
-#[allow(dead_code)]
-pub fn message_box(title: &str, message: &str) {
+pub fn message_box(title: &str, message: &str, flags: u32) -> i32 {
     let mut title_term = title.to_string();
     title_term.push('\0');
     let title_wide: Vec<u16> =  title_term.encode_utf16().collect();
@@ -31,12 +30,22 @@ pub fn message_box(title: &str, message: &str) {
             NULL(),
             message_wide.as_ptr(),
             title_wide.as_ptr(),
-            winuser::MB_OK | winuser::MB_ICONINFORMATION
-        );
+            flags
+        ) as i32
     }
 }
 
 #[allow(dead_code)]
-pub fn message_box_debug(message: String) {
-    message_box("Debug", &message);
+pub fn message_box_debug(message: &str) {
+    message_box("Debug", message, winuser::MB_OK | winuser::MB_ICONINFORMATION);
 }
+
+pub fn message_box_warning_yn(message: &str) -> bool {
+    let code = message_box("Warning", message, winuser::MB_YESNO | winuser::MB_ICONWARNING);
+    if 6 == code {
+        true
+    } else {
+        false
+    }
+}
+
