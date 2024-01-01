@@ -118,12 +118,19 @@ impl BackupDialog {
             "-f", &dest_dir
         )
             .env("PGPASSWORD", &pcc.password)
+            .stdin_null()
+            .stderr_to_stdout()
+            .stdout_capture()
             .before_spawn(|pcmd| {
                 // create no window
                 let _ = pcmd.creation_flags(0x08000000);
                 Ok(())
             });
-        let reader = cmd.stderr_to_stdout().reader()?;
+        let reader = match cmd.reader() {
+            Ok(reader) => reader,
+            Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!(
+                "pg_dump process spawn failure: {}", e)))
+        };
         for line in BufReader::new(&reader).lines() {
             match line {
                 Ok(ln) => progress.send_value(ln),

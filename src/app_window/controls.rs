@@ -171,6 +171,7 @@ impl ui::Controls for AppWindowControls {
             .build(&mut self.backup_dest_dir_label)?;
         nwg::TextInput::builder()
             .font(Some(&self.font_normal))
+            .text(&std::env::var("USERPROFILE").unwrap_or(String::new()))
             .parent(&self.backup_tab)
             .build(&mut self.backup_dest_dir_input)?;
         nwg::Button::builder()
