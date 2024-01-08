@@ -46,6 +46,7 @@ impl AppWindow {
         self.pg_conn_config.hostname = String::from("localhost");
         self.pg_conn_config.port = 5432;
         self.pg_conn_config.username = String::from("wilton");
+        self.pg_conn_config.connect_db = String::from("wilton");
         self.pg_conn_config.enable_tls = true;
         self.pg_conn_config.accept_invalid_tls = true;
 
@@ -110,6 +111,7 @@ impl AppWindow {
             Some(name) => name,
             None => return
         };
+        let bbf_db = self.c.restore_bbf_db_input.text();
         let dir = self.c.backup_dest_dir_input.text();
         let filename = self.c.backup_filename_input.text();
         let dest_path = Path::new(&dir).join(&filename);
@@ -122,7 +124,7 @@ impl AppWindow {
         if go_on {
             self.c.window.set_enabled(false);
             let args = BackupDialogArgs::new(
-                &self.c.backup_dialog_notice, &self.pg_conn_config,  &dbname, &dir, &filename);
+                &self.c.backup_dialog_notice, &self.pg_conn_config,  &dbname, &bbf_db, &dir, &filename);
             self.backup_dialog_join_handle = BackupDialog::popup(args);
         }
     }

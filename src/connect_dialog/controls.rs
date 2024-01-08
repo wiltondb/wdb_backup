@@ -33,6 +33,8 @@ pub(super) struct ConnectDialogControls {
     pub(super) username_input: nwg::TextInput,
     pub(super) password_label: nwg::Label,
     pub(super) password_input: nwg::TextInput,
+    pub(super) connect_db_label: nwg::Label,
+    pub(super) connect_db_input: nwg::TextInput,
     pub(super) enable_tls_checkbox: nwg::CheckBox,
     pub(super) accept_invalid_tls_checkbox: nwg::CheckBox,
 
@@ -60,7 +62,7 @@ impl ui::Controls for ConnectDialogControls {
             .build(&mut self.icon)?;
 
         nwg::Window::builder()
-            .size((480, 240))
+            .size((480, 280))
             .icon(Some(&self.icon))
             .center(true)
             .title("DB Connection")
@@ -108,6 +110,16 @@ impl ui::Controls for ConnectDialogControls {
             .font(Some(&self.font_normal))
             .parent(&self.window)
             .build(&mut self.password_input)?;
+        nwg::Label::builder()
+            .text("Connect DB:")
+            .font(Some(&self.font_normal))
+            .h_align(nwg::HTextAlign::Left)
+            .parent(&self.window)
+            .build(&mut self.connect_db_label)?;
+        nwg::TextInput::builder()
+            .font(Some(&self.font_normal))
+            .parent(&self.window)
+            .build(&mut self.connect_db_input)?;
         nwg::CheckBox::builder()
             .check_state(nwg::CheckBoxState::Checked)
             .text("Enable TLS")
@@ -157,6 +169,7 @@ impl ui::Controls for ConnectDialogControls {
             .control(&self.port_input)
             .control(&self.username_input)
             .control(&self.password_input)
+            .control(&self.connect_db_input)
             .control(&self.enable_tls_checkbox)
             .control(&self.accept_invalid_tls_checkbox)
             .control(&self.test_button)

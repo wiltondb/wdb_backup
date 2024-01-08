@@ -100,6 +100,7 @@ impl ConnectDialog {
             port,
             username: self.c.username_input.text(),
             password: self.c.password_input.text(),
+            connect_db: self.c.connect_db_input.text(),
             enable_tls: self.c.enable_tls_checkbox.check_state() == nwg::CheckBoxState::Checked,
             accept_invalid_tls: self.c.enable_tls_checkbox.enabled() &&
                 self.c.accept_invalid_tls_checkbox.check_state() == nwg::CheckBoxState::Checked
@@ -111,6 +112,7 @@ impl ConnectDialog {
         self.c.port_input.set_text(&config.port.to_string());
         self.c.username_input.set_text(&config.username);
         self.c.password_input.set_text(&config.password);
+        self.c.connect_db_input.set_text(&config.connect_db);
         let tls_state = if config.enable_tls {
             nwg::CheckBoxState::Checked
         } else {

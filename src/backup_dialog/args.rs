@@ -20,6 +20,7 @@ use super::*;
 #[derive(Default, Clone)]
 pub struct PgDumpArgs {
     pub(super) dbname: String,
+    pub(super) bbf_db: String,
     pub(super) parent_dir: String,
     pub(super) dest_filename: String,
 }
@@ -32,12 +33,13 @@ pub struct BackupDialogArgs {
 }
 
 impl BackupDialogArgs {
-    pub fn new(notice: &ui::SyncNotice, pg_conn_config: &PgConnConfig, dbname: &str, parent_dir: &str, dest_filename: &str) -> Self {
+    pub fn new(notice: &ui::SyncNotice, pg_conn_config: &PgConnConfig, dbname: &str, bbf_db: &str, parent_dir: &str, dest_filename: &str) -> Self {
         Self {
             notice_sender: notice.sender(),
             pg_conn_config: pg_conn_config.clone(),
             pg_dump_args: PgDumpArgs {
                 dbname: dbname.to_string(),
+                bbf_db: bbf_db.to_string(),
                 parent_dir: parent_dir.to_string(),
                 dest_filename: dest_filename.to_string()
             },

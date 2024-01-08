@@ -94,7 +94,7 @@ impl BackupDialog {
         }
     }
 
-    fn run_command(progress: &ui::SyncNoticeValueSender<String>, pcc: &PgConnConfig, dbname: &str, dest_dir: &str) -> Result<(), io::Error> {
+    fn run_command(progress: &ui::SyncNoticeValueSender<String>, pcc: &PgConnConfig, pargs: &PgDumpArgs, dest_dir: &str) -> Result<(), io::Error> {
         let cur_exe = env::current_exe()?;
         let bin_dir = match cur_exe.parent() {
             Some(path) => path,
@@ -111,11 +111,12 @@ impl BackupDialog {
             "-h", &pcc.hostname,
             "-p", &pcc.port.to_string(),
             "-U", &pcc.username,
-            "--bbf-database-name", &dbname,
+            "--bbf-database-name", &pargs.dbname,
             "-F", "d",
             "-Z", "6",
             "-j", "4",
-            "-f", &dest_dir
+            "-f", &dest_dir,
+            &pargs.bbf_db
         )
             .env("PGPASSWORD", &pcc.password)
             .stdin_null()
@@ -216,7 +217,7 @@ impl BackupDialog {
 
         // spawn and wait
         progress.send_value("Running pg_dump ....");
-        if let Err(e) = BackupDialog::run_command(progress, pcc, &pargs.dbname, &dest_dir) {
+        if let Err(e) = BackupDialog::run_command(progress, pcc, &pargs, &dest_dir) {
             return BackupResult::failure(e.to_string());
         };
 
