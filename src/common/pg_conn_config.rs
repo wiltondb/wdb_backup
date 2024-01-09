@@ -36,12 +36,12 @@ pub struct PgConnConfig {
 }
 
 impl PgConnConfig {
-    pub fn open_connection(&self) -> Result<Client, PgAccessError> {
+    fn open_connection(&self, dbname: &str) -> Result<Client, PgAccessError> {
         let conf = Config::new()
             .host(&self.hostname)
             .port(self.port)
             .user(&self.username)
-            .dbname(&self.connect_db)
+            .dbname(dbname)
             .password(&self.password)
             .connect_timeout(Duration::from_secs(10))
             .clone();
@@ -58,5 +58,13 @@ impl PgConnConfig {
         };
 
         Ok(res)
+    }
+
+    pub fn open_connection_default(&self) -> Result<Client, PgAccessError> {
+        self.open_connection(&self.connect_db)
+    }
+
+    pub fn open_connection_to_db(&self, dbname: &str) -> Result<Client, PgAccessError> {
+        self.open_connection(dbname)
     }
 }

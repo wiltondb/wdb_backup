@@ -57,9 +57,9 @@ impl ConnectCheckDialog {
     }
 
     fn check_postgres_conn(pg_conn_config: &PgConnConfig) -> Result<String, PgAccessError> {
-        let mut client = pg_conn_config.open_connection()?;
-        let vec = client.query("select version()", &[])?;
-        let row = &vec[0];
+        let mut client = pg_conn_config.open_connection_default()?;
+        let rs = client.query("select version()", &[])?;
+        let row = &rs[0];
         let res: String = row.get("version");
         client.close()?;
         Ok(res)

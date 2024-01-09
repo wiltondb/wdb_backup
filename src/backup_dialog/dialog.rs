@@ -217,7 +217,7 @@ impl BackupDialog {
 
         // spawn and wait
         progress.send_value("Running pg_dump ....");
-        if let Err(e) = BackupDialog::run_command(progress, pcc, &pargs, &dest_dir) {
+        if let Err(e) = BackupDialog::run_command(progress, pcc, pargs, &dest_dir) {
             return BackupResult::failure(e.to_string());
         };
 

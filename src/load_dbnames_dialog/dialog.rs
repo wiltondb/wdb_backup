@@ -59,14 +59,18 @@ impl LoadDbnamesDialog {
     }
 
     fn load_dbnames_from_postgres(pg_conn_config: &PgConnConfig) -> Result<(Vec<String>, String), PgAccessError> {
-        let mut client = pg_conn_config.open_connection()?;
-        let vec1 = client.query("select name from sys.babelfish_sysdatabases", &[])?;
-        let dbnames = vec1.iter().map(|row| {
+        let mut client_default = pg_conn_config.open_connection_default()?;
+        let rs_bbf_db = client_default.query("show babelfishpg_tsql.database_name", &[])?;
+        let bbf_db: String = rs_bbf_db[0].get("babelfishpg_tsql.database_name");
+        client_default.close()?;
+
+        let mut client_bbf = pg_conn_config.open_connection_to_db(&bbf_db)?;
+        let rs_dbnames = client_bbf.query("select name from sys.babelfish_sysdatabases", &[])?;
+        let dbnames = rs_dbnames.iter().map(|row| {
             row.get("name")
         }).collect();
-        let vec2 = client.query("show babelfishpg_tsql.database_name", &[])?;
-        let bbf_db: String = vec2[0].get("babelfishpg_tsql.database_name");
-        client.close()?;
+        client_bbf.close()?;
+
         Ok((dbnames, bbf_db))
     }
 }

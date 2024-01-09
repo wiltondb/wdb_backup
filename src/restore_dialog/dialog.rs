@@ -125,13 +125,13 @@ impl RestoreDialog {
         }
     }
 
-    fn check_db_does_not_exist(pg_conn_config: &PgConnConfig, dbname: &str) -> Result<(), PgAccessError> {
-        let mut client = pg_conn_config.open_connection()?;
-        let cursor = client.query("select name from sys.babelfish_sysdatabases", &[])?;
-        for row in cursor.iter() {
+    fn check_db_does_not_exist(pg_conn_config: &PgConnConfig, ra: &PgRestoreArgs) -> Result<(), PgAccessError> {
+        let mut client = pg_conn_config.open_connection_to_db(&ra.bbf_db_name)?;
+        let rs = client.query("select name from sys.babelfish_sysdatabases", &[])?;
+        for row in rs.iter() {
             let name: String = row.get("name");
-            if name.to_lowercase() == dbname.to_lowercase() {
-                return Err(PgAccessError::from_string(format!("Database with name '{}' already exists", dbname)))
+            if name.to_lowercase() == ra.dest_db_name.to_lowercase() {
+                return Err(PgAccessError::from_string(format!("Database with name '{}' already exists", &name)))
             }
         };
         client.close()?;
@@ -140,19 +140,21 @@ impl RestoreDialog {
 
     fn create_role_if_not_exist(client: &mut postgres::Client, dbname: &str, role: &str) -> Result<Option<String>, PgAccessError> {
         let rolname = format!("{}_{}", dbname, role);
-        let list = client.query("select (count(1) > 0) as role_exist from pg_catalog.pg_roles where rolname = $1", &[&rolname])?;
-        let exists: bool = list[0].get(0);
+        let rs = client.query("select (count(1) > 0) as role_exist from pg_catalog.pg_roles where rolname = $1", &[&rolname])?;
+        let exists: bool = rs[0].get(0);
         if !exists {
-            client.execute(&format!("CREATE ROLE {}", rolname), &[])?;
-            client.execute(&format!("ALTER ROLE {} WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", rolname), &[])?;
+            client.execute(&format!("CREATE ROLE {} WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", rolname), &[])?;
+            // db error: ERROR: must be superuser to alter superuser roles or change superuser attribute
+            // client.execute(&format!("ALTER ROLE {} WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB NOLOGIN NOREPLICATION NOBYPASSRLS", rolname), &[])?;
             Ok(Some(rolname))
         } else {
             Ok(None)
         }
     }
 
-    fn restore_global_data(pcc: &PgConnConfig, dbname: &str) -> Result<Vec<String>, PgAccessError> {
-        let mut client = pcc.open_connection()?;
+    fn restore_global_data(pcc: &PgConnConfig, ra: &PgRestoreArgs) -> Result<Vec<String>, PgAccessError> {
+        let mut client = pcc.open_connection_to_db(&ra.bbf_db_name)?;
+        let dbname = &ra.dest_db_name;
         let mut res = Vec::new();
         for role in vec!(
             "db_owner",
@@ -163,16 +165,16 @@ impl RestoreDialog {
                 res.push(rolename);
             }
         }
-        client.execute(&format!("GRANT {}_db_owner TO {}_dbo GRANTED BY sysadmin", dbname, dbname), &[])?;
-        client.execute(&format!("GRANT {}_dbo TO sysadmin GRANTED BY sysadmin", dbname), &[])?;
-        client.execute(&format!("GRANT {}_guest TO sysadmin GRANTED BY sysadmin", dbname), &[])?;
-        client.execute(&format!("GRANT {}_guest TO {}_db_owner GRANTED BY sysadmin", dbname, dbname), &[])?;
+        client.execute(&format!("GRANT {}_db_owner TO {}_dbo", dbname, dbname), &[])?;
+        client.execute(&format!("GRANT {}_dbo TO sysadmin", dbname), &[])?;
+        client.execute(&format!("GRANT {}_guest TO sysadmin", dbname), &[])?;
+        client.execute(&format!("GRANT {}_guest TO {}_db_owner", dbname, dbname), &[])?;
         client.close()?;
         Ok(res)
     }
 
-    fn drop_created_roles(pcc: &PgConnConfig, roles: &Vec<String>) -> Result<(), PgAccessError> {
-        let mut client = pcc.open_connection()?;
+    fn drop_created_roles(pcc: &PgConnConfig, bbf_db: &str, roles: &Vec<String>) -> Result<(), PgAccessError> {
+        let mut client = pcc.open_connection_to_db(bbf_db)?;
         for rolname in roles {
             client.execute(&format!("DROP ROLE {}", rolname), &[])?;
         }
@@ -241,7 +243,7 @@ impl RestoreDialog {
         progress.send_value(format!("Running restore into DB: {} ...", ra.dest_db_name));
 
         // db check
-        if let Err(e) = Self::check_db_does_not_exist(pcc, &ra.dest_db_name) {
+        if let Err(e) = Self::check_db_does_not_exist(pcc, ra) {
             return RestoreResult::failure(format!("{}", e))
         }
 
@@ -261,7 +263,7 @@ impl RestoreDialog {
 
         // global data
         progress.send_value("Restoring roles ...");
-        let roles = match Self::restore_global_data(pcc, &ra.dest_db_name) {
+        let roles = match Self::restore_global_data(pcc, ra) {
             Ok(roles) => roles,
             Err(e) => return RestoreResult::failure(format!("{}", e))
         };
@@ -272,7 +274,7 @@ impl RestoreDialog {
             if roles.len() > 0 {
                 progress.send_value(format!(
                     "Error: restore failed, cleaning up global roles we created: {}", roles.join(", ")));
-                match Self::drop_created_roles(pcc, &roles) {
+                match Self::drop_created_roles(pcc, &ra.bbf_db_name, &roles) {
                     Ok(_) => progress.send_value("Global roles cleanup complete"),
                     Err(e) => progress.send_value(format!(
                         "Error cleaning up global roles: {}", e))
