@@ -1,7 +1,9 @@
 WiltonDB Backup Tool
-===========================
+====================
 
 Backup and restore GUI tool for WiltonDB.
+
+Link to [documentation](https://github.com/wiltondb/wiltondb/wiki/WiltonDB-Backup-GUI-tool).
 
 License information
 -------------------

@@ -299,9 +299,21 @@ impl ui::Controls for AppWindowControls {
     fn update_tab_order(&self) {
         ui::tab_order_builder()
             .control(&self.backup_dbname_combo)
+            .control(&self.backup_dbname_reload_button)
             .control(&self.backup_dest_dir_input)
+            .control(&self.backup_dest_dir_button)
+            .control(&self.backup_filename_input)
             .control(&self.backup_run_button)
             .control(&self.backup_close_button)
+            .build();
+
+        ui::tab_order_builder()
+            .control(&self.restore_src_file_input)
+            .control(&self.restore_src_file_button)
+            .control(&self.restore_bbf_db_input)
+            .control(&self.restore_dbname_input)
+            .control(&self.restore_run_button)
+            .control(&self.restore_close_button)
             .build();
     }
 }

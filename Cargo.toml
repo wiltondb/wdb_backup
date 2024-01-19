@@ -1,6 +1,6 @@
 [package]
 name = "wdb_backup"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["alex@wiltondb.com"]
 edition = "2018"
 
@@ -14,6 +14,7 @@ duct = "0.13.6"
 flate2 = "1.0.28"
 native-tls = "0.2.11"
 nwg = {version = "1.0.12", package = "native-windows-gui", features = ["all", "flexbox"]}
+nwg_ui = {version = "1.0.0"}
 pgdump_toc_rewrite = "1.0.1"
 postgres = {version = "0.19.7", features = ["with-chrono-0_4"]}
 postgres-native-tls = "0.5.0"

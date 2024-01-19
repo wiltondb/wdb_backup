@@ -16,7 +16,6 @@
 
 #![windows_subsystem = "windows"]
 
-mod nwg_ui;
 mod common;
 mod about_dialog;
 mod app_window;
