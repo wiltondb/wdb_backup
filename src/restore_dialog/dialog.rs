@@ -111,7 +111,7 @@ impl RestoreDialog {
         let listener = |en: &str| {
             progress.send_value(en);
         };
-        match unzip_directory(zipfile, parent_dir_st, &listener) {
+        match zip_recurse::unzip_directory_listen(zipfile, parent_dir_st, listener) {
             Ok(dirname) => {
                 let dir_path = parent_dir.join(Path::new(&dirname));
                 match dir_path.to_str() {

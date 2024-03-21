@@ -173,7 +173,7 @@ impl BackupDialog {
         let listener = |en: &str| {
             progress.send_value(en);
         };
-        if let Err(e) = zip_directory(dest_dir_st, dest_file_st, 0, &listener) {
+        if let Err(e) = zip_recurse::zip_directory_listen(dest_dir_st, dest_file_st, 0, listener) {
             return Err(io::Error::new(io::ErrorKind::Other, e.to_string()))
         };
         std::fs::remove_dir_all(dest_dir_path)?;
