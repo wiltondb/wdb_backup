@@ -193,7 +193,7 @@ impl RestoreDialog {
             }
         };
         let pg_restore_exe = bin_dir.join("pg_restore.exe");
-        let cmd = duct::cmd!(
+        let mut cmd = duct::cmd!(
             pg_restore_exe,
             "-v",
             "-h", &pcc.hostname,
@@ -205,7 +205,6 @@ impl RestoreDialog {
             "--single-transaction",
             dir
         )
-            .env("PGPASSWORD", &pcc.password)
             .stdin_null()
             .stderr_to_stdout()
             .stdout_capture()
@@ -214,6 +213,9 @@ impl RestoreDialog {
                 let _ = pcmd.creation_flags(0x08000000);
                 Ok(())
             });
+        if !&pcc.use_pgpass_file {
+            cmd = cmd.env("PGPASSWORD", &pcc.password);
+        }
         let reader = match cmd.reader() {
             Ok(reader) => reader,
             Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!(

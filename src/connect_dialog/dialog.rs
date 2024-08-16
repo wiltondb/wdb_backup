@@ -64,6 +64,14 @@ impl ConnectDialog {
         }
     }
 
+    pub(super) fn on_use_pgpass_checkbox_changed(&mut self, _: nwg::EventData) {
+        if self.c.use_pgpass_checkbox.check_state() == nwg::CheckBoxState::Checked {
+            self.c.password_input.set_readonly(true);
+        } else {
+            self.c.password_input.set_readonly(false);
+        }
+    }
+
     pub(super) fn on_port_input_changed(&mut self, _: nwg::EventData) {
         self.correct_port_value();
     }
@@ -100,6 +108,7 @@ impl ConnectDialog {
             port,
             username: self.c.username_input.text(),
             password: self.c.password_input.text(),
+            use_pgpass_file: self.c.use_pgpass_checkbox.check_state() == nwg::CheckBoxState::Checked,
             connect_db: self.c.connect_db_input.text(),
             enable_tls: self.c.enable_tls_checkbox.check_state() == nwg::CheckBoxState::Checked,
             accept_invalid_tls: self.c.enable_tls_checkbox.enabled() &&
@@ -112,6 +121,14 @@ impl ConnectDialog {
         self.c.port_input.set_text(&config.port.to_string());
         self.c.username_input.set_text(&config.username);
         self.c.password_input.set_text(&config.password);
+        let pgpass_state = if config.use_pgpass_file {
+            self.c.password_input.set_readonly(true);
+            nwg::CheckBoxState::Checked
+        } else {
+            self.c.password_input.set_readonly(false);
+            nwg::CheckBoxState::Unchecked
+        };
+        self.c.use_pgpass_checkbox.set_check_state(pgpass_state);
         self.c.connect_db_input.set_text(&config.connect_db);
         let tls_state = if config.enable_tls {
             nwg::CheckBoxState::Checked

@@ -105,7 +105,7 @@ impl BackupDialog {
             }
         };
         let pg_dump_exe = bin_dir.join("pg_dump.exe");
-        let cmd = duct::cmd!(
+        let mut cmd = duct::cmd!(
             pg_dump_exe,
             "-v",
             "-h", &pcc.hostname,
@@ -118,7 +118,6 @@ impl BackupDialog {
             "-f", &dest_dir,
             &pargs.bbf_db
         )
-            .env("PGPASSWORD", &pcc.password)
             .stdin_null()
             .stderr_to_stdout()
             .stdout_capture()
@@ -127,6 +126,9 @@ impl BackupDialog {
                 let _ = pcmd.creation_flags(0x08000000);
                 Ok(())
             });
+        if !&pcc.use_pgpass_file {
+            cmd = cmd.env("PGPASSWORD", &pcc.password);
+        }
         let reader = match cmd.reader() {
             Ok(reader) => reader,
             Err(e) => return Err(io::Error::new(io::ErrorKind::Other, format!(

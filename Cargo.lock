@@ -1455,7 +1455,7 @@ checksum = "0d046c5d029ba91a1ed14da14dca44b68bf2f124cfbaf741c54151fdb3e0750b"
 
 [[package]]
 name = "wdb_backup"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "chrono",
  "clipboard-win",

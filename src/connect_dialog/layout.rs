@@ -23,6 +23,7 @@ pub(super) struct ConnectDialogLayout {
     port_layout: nwg::FlexboxLayout,
     username_layout: nwg::FlexboxLayout,
     password_layout: nwg::FlexboxLayout,
+    use_pgpass_layout: nwg::FlexboxLayout,
     connect_db_layout: nwg::FlexboxLayout,
     enable_tls_layout: nwg::FlexboxLayout,
     accept_invalid_tls_layout: nwg::FlexboxLayout,
@@ -98,6 +99,21 @@ impl ui::Layout<ConnectDialogControls> for ConnectDialogLayout {
                 .build())
             .child_flex_grow(1.0)
             .build_partial(&self.password_layout)?;
+
+        nwg::FlexboxLayout::builder()
+            .parent(&c.window)
+            .flex_direction(ui::FlexDirection::Row)
+            .auto_spacing(None)
+            .child(&c.use_pgpass_checkbox)
+            .child_size(ui::size_builder()
+                .width_auto()
+                .height_input_form_row()
+                .build())
+            .child_flex_grow(1.0)
+            .child_margin(ui::margin_builder()
+                .start_no_label_normal()
+                .build())
+            .build_partial(&self.use_pgpass_layout)?;
 
         nwg::FlexboxLayout::builder()
             .parent(&c.window)
@@ -186,6 +202,7 @@ impl ui::Layout<ConnectDialogControls> for ConnectDialogLayout {
             .child_layout(&self.port_layout)
             .child_layout(&self.username_layout)
             .child_layout(&self.password_layout)
+            .child_layout(&self.use_pgpass_layout)
             .child_layout(&self.connect_db_layout)
             .child_layout(&self.enable_tls_layout)
             .child_layout(&self.accept_invalid_tls_layout)

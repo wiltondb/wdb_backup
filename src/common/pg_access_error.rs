@@ -34,6 +34,19 @@ impl PgAccessError {
             message
         }
     }
+
+    pub fn pgpass_not_found() -> Self {
+        Self {
+            message: "pgpass file not found on path: '%APPDATA%/postgresql/pgpass.conf'".to_string()
+        }
+    }
+
+    pub fn pgpass_error(path: &str, line_no: u32) -> Self {
+        Self {
+            message: format!(
+                "Error reading password from pgpass file on path: [{}], line number: [{}]", path, line_no)
+        }
+    }
 }
 
 impl fmt::Display for PgAccessError {
@@ -62,6 +75,12 @@ impl From<io::Error> for PgAccessError {
 
 impl From<&str> for PgAccessError {
     fn from(value: &str) -> Self {
+        Self::new(&value)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for PgAccessError {
+    fn from(value: std::string::FromUtf8Error) -> Self {
         Self::new(&value)
     }
 }
