@@ -795,9 +795,9 @@ checksum = "9b2a4787296e9989611394c33f193f676704af1686e70b8f8033ab5ba9a35a94"
 
 [[package]]
 name = "pgdump_toc_rewrite"
-version = "1.0.2"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc487ca3622dd591c08a1f3dc115856d9d6e30ac3841d1436638df767d33ea1e"
+checksum = "a915f94118997b1ed2f6f99a6e320f3ee2dec22043e3ea456eb865210371f538"
 dependencies = [
  "chrono",
  "clap",
@@ -1455,7 +1455,7 @@ checksum = "0d046c5d029ba91a1ed14da14dca44b68bf2f124cfbaf741c54151fdb3e0750b"
 
 [[package]]
 name = "wdb_backup"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "chrono",
  "clipboard-win",
