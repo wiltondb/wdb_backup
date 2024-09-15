@@ -795,9 +795,9 @@ checksum = "9b2a4787296e9989611394c33f193f676704af1686e70b8f8033ab5ba9a35a94"
 
 [[package]]
 name = "pgdump_toc_rewrite"
-version = "1.0.4"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a915f94118997b1ed2f6f99a6e320f3ee2dec22043e3ea456eb865210371f538"
+checksum = "9333023d56373141a74c5ea1b97d5162c182d0d713f3f151274a0f26dcfb60c4"
 dependencies = [
  "chrono",
  "clap",
@@ -1144,9 +1144,9 @@ dependencies = [
 
 [[package]]
 name = "sqlparser"
-version = "0.40.0"
+version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c80afe31cdb649e56c0d9bb5503be9166600d68a852c38dd445636d126858e5"
+checksum = "f7bbffee862a796d67959a89859d6b1046bb5016d63e23835ad0da182777bbe0"
 dependencies = [
  "log",
 ]
@@ -1455,7 +1455,7 @@ checksum = "0d046c5d029ba91a1ed14da14dca44b68bf2f124cfbaf741c54151fdb3e0750b"
 
 [[package]]
 name = "wdb_backup"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "chrono",
  "clipboard-win",
