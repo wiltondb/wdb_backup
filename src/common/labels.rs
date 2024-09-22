@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-pub static VERSION: &str = "1.0.8";
+pub static VERSION: &str = "1.0.9";
